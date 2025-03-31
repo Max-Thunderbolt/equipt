@@ -5,39 +5,39 @@ const routes = [
   {
     path: '/',
     name: 'Home',
-    component: () => import('../components/HomePage.vue')
+    component: () => import('../views/HomePage.vue')
   },
   {
     path: '/profile',
     name: 'Profile',
-    component: () => import('../components/ProfilePage.vue'),
+    component: () => import('../views/ProfilePage.vue'),
     meta: { requiresAuth: true }
   },
   {
     path: '/projects',
     name: 'Projects',
-    component: () => import('../components/ProjectsPage.vue')
+    component: () => import('../views/ProjectsPage.vue')
   },
   {
     path: '/projects/:id',
     name: 'ProjectDetails',
-    component: () => import('../components/ProjectDetails.vue')
+    component: () => import('../views/ProjectDetails.vue')
   },
   {
     path: '/files',
     name: 'Files',
-    component: () => import('../components/FilesPage.vue'),
+    component: () => import('../views/FilesPage.vue'),
     meta: { requiresAuth: true }
   },
   {
     path: '/explore',
     name: 'Explore',
-    component: () => import('../components/ExplorePage.vue')
+    component: () => import('../views/ExplorePage.vue')
   },
   {
     path: '/showcase',
     name: 'Showcase',
-    component: () => import('../components/ShowcasePage.vue')
+    component: () => import('../views/ShowcasePage.vue')
   }
 ]
 

@@ -6,7 +6,7 @@ import { useProjects } from '../composables/useProjects'
 import { useUserSearch } from '../composables/useUserSearch'
 import { useFileStorage } from '../composables/useFileStorage'
 import { supabase } from '../supabase/config'
-import FilesGrid from './FilesGrid.vue'
+import FilesGrid from '../components/ui/FilesGrid.vue'
 
 const TABLES = {
   PROJECTS: 'projects',

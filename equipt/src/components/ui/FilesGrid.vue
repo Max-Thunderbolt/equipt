@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useFileStorage } from '../composables/useFileStorage';
+import { useFileStorage } from '../../composables/useFileStorage';
 
 const props = defineProps({
   files: {

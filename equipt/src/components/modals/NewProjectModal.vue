@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { useUserSearch } from '../composables/useUserSearch'
+import { useUserSearch } from '../../composables/useUserSearch'
 
 const props = defineProps({
   isOpen: {

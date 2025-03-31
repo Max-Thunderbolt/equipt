@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useAuth } from '../composables/useAuth'
-import { useProfile } from '../composables/useProfile'
-import { useProjects } from '../composables/useProjects'
-import NewProjectModal from './NewProjectModal.vue'
-import AuthModal from './AuthModal.vue'
-import { supabase } from '../supabase/config'
+import { useAuth } from '../../composables/useAuth'
+import { useProfile } from '../../composables/useProfile'
+import { useProjects } from '../../composables/useProjects'
+import NewProjectModal from '../modals/NewProjectModal.vue'
+import AuthModal from '../modals/AuthModal.vue'
+import { supabase } from '../../supabase/config'
 
 const { user, session } = useAuth()
 const { profile, fetchProfile } = useProfile()

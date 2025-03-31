@@ -2,7 +2,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from './supabase/config'
-import Navigation from './components/Navigation.vue'
+import Navigation from './components/layout/Navigation.vue'
 
 const router = useRouter()
 
