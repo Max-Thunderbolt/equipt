@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "@vueuse/firebase": "^13.0.0",
+    "firebase": "^11.5.0"
+  }
+}
