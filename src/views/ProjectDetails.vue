@@ -21,7 +21,7 @@ const router = useRouter()
 const { user } = useAuth()
 const { hasProjectAccess } = useProjects()
 const { searchResults, loading: userSearchLoading, error: userSearchError, searchUsers } = useUserSearch()
-const { uploadFile, downloadFile, getFileUrl, updateMissingFileUrls, error: fileError, uploading: fileUploading, progress: uploadProgress } = useFileStorage()
+const { uploadFile, downloadFile, getFileUrl, updateMissingFileUrls, error: fileError, uploading: fileUploading, progress: uploadProgress, deleteFile } = useFileStorage()
 
 const projectId = ref('')
 const project = ref(null)
@@ -575,40 +575,18 @@ const removeCollaborator = async () => {
   }
 }
 
-// Improve the handleFileDownload function to use URLs when available
+// Function to handle file downloads
 const handleFileDownload = async (file) => {
-  if (!file) return
-  
   try {
-    // If the file has a URL, use it directly for download
-    if (file.url) {
-      window.open(file.url, '_blank')
-      return
+    if (!file || !file.file_path) {
+      error.value = 'Invalid file information';
+      return;
     }
     
-    // Otherwise use the file_path to download
-    if (!file.file_path) {
-      console.error('File has no path or URL')
-      return
-    }
-    
-    const blob = await downloadFile(file.file_path)
-    if (!blob) return
-    
-    // Create a temporary download link
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = file.name
-    document.body.appendChild(a)
-    a.click()
-    
-    // Clean up
-    URL.revokeObjectURL(url)
-    document.body.removeChild(a)
+    await downloadFile(file.file_path);
   } catch (err) {
-    console.error('Error downloading file:', err)
-    error.value = 'Failed to download file'
+    console.error('Error downloading file:', err);
+    error.value = 'Failed to download the file';
   }
 }
 
@@ -668,11 +646,20 @@ const getFileIcon = (fileName) => {
   }
 }
 
-// Add this function to handle file deletion events from FilesGrid
-const handleFileDeleted = (file) => {
-  // Update the project.files array to remove the deleted file
-  if (project.value && project.value.files) {
-    project.value.files = project.value.files.filter(f => f.id !== file.id)
+// Function to handle file deletion 
+const handleFileDeleted = async (file) => {
+  try {
+    const success = await deleteFile(file.file_path, file.id);
+    
+    if (success) {
+      // Update the local project files list when a file is deleted
+      project.value.files = project.value.files.filter(f => f.id !== file.id);
+    } else {
+      error.value = 'Failed to delete file. Please try again.';
+    }
+  } catch (err) {
+    console.error('Error deleting file:', err);
+    error.value = 'An error occurred while deleting the file.';
   }
 }
 
@@ -768,6 +755,7 @@ onMounted(() => {
               :allowDelete="isOwner || userRole === 'admin'"
               emptyMessage="No files uploaded yet"
               @delete="handleFileDeleted"
+              @download="handleFileDownload"
               class="files-grid-improved files-grid-project"
             />
           </div>

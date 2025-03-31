@@ -94,20 +94,49 @@ export function useFileStorage() {
   
   // Download a file from storage
   const downloadFile = async (filePath) => {
-    error.value = null
+    error.value = null;
     
     try {
+      if (!filePath) {
+        error.value = 'File path is required';
+        return null;
+      }
+
+      // Check if file path is actually a URL
+      if (filePath.startsWith('http')) {
+        window.open(filePath, '_blank');
+        return true;
+      }
+
       const { data, error: downloadError } = await supabase.storage
         .from('project-files')
-        .download(filePath)
+        .download(filePath);
       
-      if (downloadError) throw downloadError
+      if (downloadError) throw downloadError;
       
-      return data
+      // Create a blob URL and trigger download
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      
+      // Extract filename from path
+      const filename = filePath.split('/').pop();
+      
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
+      return true;
     } catch (err) {
-      console.error('Error downloading file:', err)
-      error.value = err.message
-      return null
+      console.error('Error downloading file:', err);
+      error.value = err.message;
+      return false;
     }
   }
   

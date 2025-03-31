@@ -1,7 +1,21 @@
 {
+  "name": "equipt",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "firebase deploy"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
-    "@vueuse/firebase": "^13.0.0",
-    "firebase": "^11.5.0"
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.2.0"
   }
 }

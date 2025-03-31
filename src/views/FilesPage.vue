@@ -11,7 +11,7 @@ const TABLES = {
 }
 
 const { user } = useAuth()
-const { updateMissingFileUrls, deleteFile } = useFileStorage()
+const { updateMissingFileUrls, deleteFile, downloadFile } = useFileStorage()
 
 // State management
 const loading = ref(true)
@@ -152,6 +152,22 @@ const getFileProjectName = (file) => {
   return file.project ? file.project.name : 'Unknown Project'
 }
 
+// Add a function to handle file downloads
+const handleFileDownload = async (file) => {
+  try {
+    if (!file || !file.file_path) {
+      error.value = 'Invalid file information';
+      return;
+    }
+    
+    // Use the file_path to download the file
+    await downloadFile(file.file_path);
+  } catch (err) {
+    console.error('Error downloading file:', err);
+    error.value = 'Failed to download the file';
+  }
+}
+
 // Initialize
 onMounted(async () => {
   if (user.value) {
@@ -240,11 +256,16 @@ onMounted(async () => {
       </div>
       
       <FilesGrid 
-        :files="filteredFiles" 
+        :files="filteredFiles"
         :loading="loading"
+        :layout="viewMode === 'grid' ? 'standard' : 'list'"
         :viewMode="viewMode"
+        :allowDelete="true"
+        emptyMessage="No files found"
         @delete="handleFileDeleted"
         @preview="handlePreview"
+        @download="handleFileDownload"
+        class="files-grid-improved"
       />
     </div>
     

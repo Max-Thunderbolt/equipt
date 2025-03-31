@@ -31,10 +31,10 @@ const props = defineProps({
 
 const { downloadFile } = useFileStorage();
 
-const emit = defineEmits(['delete', 'preview']);
+const emit = defineEmits(['delete', 'preview', 'download']);
 
 const handleDownload = async (file) => {
-  await downloadFile(file);
+  emit('download', file);
 };
 
 const handleDelete = (file) => {

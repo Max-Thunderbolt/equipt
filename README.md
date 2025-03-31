@@ -1,78 +1,38 @@
 # Equipt
 
-A modern platform for storing and sharing creative project ideas and design processes. Built with Vue.js and modern web technologies.
-
-![Equipt Logo](equipt/src/assets/logo.png)
-
-## Features
-
-- Store and organize creative project ideas
-- Share design processes and documentation
-- Modern, responsive user interface
-- Tag-based organization system
-- Project showcase functionality
-
-## Tech Stack
-
-- Vue.js 3
-- Vue Router
-- Modern CSS with custom properties
-- File storage integration (coming soon)
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v14 or higher)
-- npm or yarn
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/equipt.git
-cd equipt
-```
-
-2. Install dependencies:
-```bash
-npm install
-# or
-yarn install
-```
-
-3. Start the development server:
-```bash
-npm run dev
-# or
-yarn dev
-```
-
-4. Open your browser and visit `http://localhost:5173`
+A modern project management application built with Vue.js and Firebase.
 
 ## Project Structure
 
+- `/src` - Vue.js source files
+- `/public` - Static assets (copied to dist during build)
+- `/dist` - Build output (generated)
+- `.github/workflows` - GitHub Actions CI/CD
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
-equipt/
-├── src/
-│   ├── assets/         # Static assets
-│   ├── components/     # Vue components
-│   ├── views/          # Page components
-│   ├── App.vue         # Root component
-│   ├── main.js         # Application entry point
-│   └── style.css       # Global styles
-├── public/             # Public static assets
-└── index.html          # HTML entry point
-```
 
-## Contributing
+## Deployment
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+The project is configured to automatically deploy to Firebase Hosting when code is merged to the main branch. You can also deploy manually:
 
-## License
+```bash
+# Install Firebase CLI globally (if not already installed)
+npm install -g firebase-tools
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+# Login to Firebase (first time only)
+firebase login
+
+# Deploy to Firebase
+firebase deploy
+``` 
