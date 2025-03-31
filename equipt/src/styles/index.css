@@ -1,0 +1,17 @@
+/* Main Stylesheet */
+@import './cards.css';
+@import './forms.css';
+@import './user.css';
+@import './layout.css';
+
+/* Add any global styles or overrides here */
+.empty-updates {
+  composes: empty-state;
+}
+
+/* Ensure the project details .empty-updates has the icon */
+.empty-updates p::before {
+  content: "📋";
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+} 

@@ -709,34 +709,35 @@ onMounted(() => {
       <div class="project-body">
         <div class="project-info">
           <div class="info-card">
-            <h3>Description</h3>
+            <h3 data-icon="description">Description</h3>
             <p>{{ project.description || 'No description provided' }}</p>
           </div>
 
-          <div class="info-card">
-            <h3>Project Owner</h3>
-            <div class="owner-info">
-              <div class="user-avatar">
-                <img 
-                  v-if="project.owner?.avatar_url" 
-                  :src="project.owner.avatar_url" 
-                  :alt="project.owner.display_name"
-                  referrerpolicy="no-referrer"
-                >
-                <div v-else class="avatar-placeholder">
-                  {{ project.owner?.display_name?.[0]?.toUpperCase() || '?' }}
+          <!-- Group Project Owner and Collaborators together -->
+          <div class="owner-collab-group">
+            <div class="info-card owner-card">
+              <h3 data-icon="owner">Project Owner</h3>
+              <div class="owner-info">
+                <div class="user-avatar">
+                  <img 
+                    v-if="project.owner?.avatar_url" 
+                    :src="project.owner.avatar_url" 
+                    :alt="project.owner.display_name"
+                    referrerpolicy="no-referrer"
+                  >
+                  <div v-else class="avatar-placeholder">
+                    {{ project.owner?.display_name?.[0]?.toUpperCase() || '?' }}
+                  </div>
                 </div>
+                <span>{{ project.owner?.display_name || 'Unknown' }}</span>
               </div>
-              <span>{{ project.owner?.display_name || 'Unknown' }}</span>
             </div>
-          </div>
 
-          <div v-if="project.collaborators && project.collaborators.length > 0" class="info-card">
-            <h3>Collaborators</h3>
-            <div class="collaborators-list">
-              <div v-for="collab in project.collaborators" :key="collab.user?.id || collab.id" class="collaborator-item">
-                <div class="user-info">
-                  <div class="user-avatar">
+            <div v-if="project.collaborators && project.collaborators.length > 0" class="info-card collab-card">
+              <h3 data-icon="collaborators">Collaborators</h3>
+              <div class="collaborators-grid">
+                <div v-for="collab in project.collaborators" :key="collab.user?.id || collab.id" class="collaborator-item">
+                  <div class="user-avatar small">
                     <img 
                       v-if="collab.user?.avatar_url" 
                       :src="collab.user.avatar_url" 
@@ -747,30 +748,49 @@ onMounted(() => {
                       {{ collab.user?.display_name?.[0]?.toUpperCase() || '?' }}
                     </div>
                   </div>
-                  <span>{{ collab.user?.display_name || 'Unknown User' }}</span>
+                  <div class="user-details">
+                    <span class="user-name">{{ collab.user?.display_name || 'Unknown User' }}</span>
+                    <span class="role-icon" :class="collab.role" :title="collab.role"></span>
+                  </div>
                 </div>
-                <span :class="['role-badge', collab.role]">{{ collab.role }}</span>
               </div>
             </div>
           </div>
         </div>
 
         <div class="project-files">
-          <div class="info-card">
-            <h3>Files</h3>
+          <div class="info-card files-card">
+            <h3 data-icon="files">Files</h3>
             <FilesGrid 
               :files="project.files" 
-              layout="list" 
+              layout="standard" 
+              viewMode="grid"
               :allowDelete="isOwner || userRole === 'admin'"
               emptyMessage="No files uploaded yet"
               @delete="handleFileDeleted"
+              class="files-grid-improved files-grid-project"
             />
+          </div>
+          
+          <div v-if="isOwner || userRole === 'admin' || userRole === 'editor'" class="info-card">
+            <h3 data-icon="settings">Project Actions</h3>
+            <div class="project-actions">
+              <button class="btn btn-success" @click="openUpdateModal">
+                <span class="icon">+</span> Add Progress / Update Project
+              </button>
+              <button v-if="isOwner || userRole === 'admin'" class="btn btn-primary" @click="openEditModal">
+                Edit Project
+              </button>
+              <button v-if="isOwner || userRole === 'admin'" class="btn btn-danger" @click="openDeleteConfirm">
+                Delete Project
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       <div class="project-updates">
-        <h3>Project Updates</h3>
+        <h3 data-icon="updates">Project Updates</h3>
         
         <div v-if="project.updates && project.updates.length > 0" class="updates-list">
           <div v-for="update in project.updates" :key="update.id" class="update-item">
@@ -795,13 +815,14 @@ onMounted(() => {
             </div>
             
             <div class="update-content">
-              <p>{{ update.description }}</p>
+              <p class="update-text">{{ update.description }}</p>
             </div>
             
             <div v-if="project.files" class="update-files">
               <FilesGrid 
                 :files="project.files.filter(f => f.update_id === update.id)" 
                 layout="compact" 
+                viewMode="grid"
                 :allowDelete="isOwner || userRole === 'admin'"
                 emptyMessage="No files attached to this update"
                 @delete="handleFileDeleted"
@@ -810,21 +831,9 @@ onMounted(() => {
           </div>
         </div>
         
-        <div v-else class="empty-updates">
+        <div v-else class="empty-updates empty-state">
           <p>No updates yet. Click "Add Progress / Update Project" to add the first update.</p>
         </div>
-      </div>
-
-      <div v-if="isOwner || userRole === 'admin' || userRole === 'editor'" class="project-actions">
-        <button class="btn btn-success" @click="openUpdateModal">
-          <span class="icon">+</span> Add Progress / Update Project
-        </button>
-        <button v-if="isOwner || userRole === 'admin'" class="btn btn-primary" @click="openEditModal">
-          Edit Project
-        </button>
-        <button v-if="isOwner || userRole === 'admin'" class="btn btn-danger" @click="openDeleteConfirm">
-          Delete Project
-        </button>
       </div>
     </div>
 
@@ -1153,729 +1162,7 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
-.project-details {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.loading, .error-message {
-  text-align: center;
-  padding: 4rem;
-  color: var(--text-secondary);
-}
-
-.error-message {
-  color: #ef4444;
-}
-
-.project-header {
-  margin-bottom: 2rem;
-}
-
-.back-button {
-  display: inline-block;
-  padding: 0.5rem 0;
-  margin-bottom: 1rem;
-  color: var(--accent-blue);
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.back-button:hover {
-  text-decoration: underline;
-}
-
-h1 {
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-}
-
-.project-meta {
-  display: flex;
-  gap: 1.5rem;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.project-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-.project-updates {
-  margin-bottom: 2rem;
-}
-
-.project-updates h3 {
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-  color: var(--text-primary);
-}
-
-.info-card {
-  background: var(--secondary-dark);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.info-card h3 {
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-  color: var(--text-primary);
-}
-
-.info-card p {
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.owner-info, .user-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--primary-dark);
-}
-
-.user-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  color: var(--white);
-  background-color: var(--primary-dark);
-}
-
-.collaborators-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.collaborator-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: var(--primary-dark);
-  border-radius: 6px;
-}
-
-.role-badge {
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.role-badge.owner {
-  background-color: var(--primary);
-  color: var(--white);
-}
-
-.role-badge.admin {
-  background-color: var(--success);
-  color: var(--white);
-}
-
-.role-badge.editor {
-  background-color: var(--info);
-  color: var(--white);
-}
-
-.role-badge.viewer {
-  background-color: var(--secondary-dark);
-  color: var(--white);
-}
-
-.files-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--primary-dark);
-  border-radius: 6px;
-}
-
-.file-icon {
-  font-size: 1.5rem;
-}
-
-.file-info {
-  flex: 1;
-}
-
-.file-name {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-.file-meta {
-  display: flex;
-  gap: 1rem;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.empty-message {
-  color: var(--text-secondary);
-  font-style: italic;
-}
-
-.project-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-}
-
-.btn {
-  padding: 0.5rem 1.5rem;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-}
-
-.btn-primary {
-  background: var(--accent-blue);
-  color: white;
-}
-
-.btn-danger {
-  background: #ef4444;
-  color: white;
-}
-
-.btn-success {
-  background: #22c55e;
-  color: white;
-}
-
-.icon {
-  margin-right: 0.5rem;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-content {
-  background: var(--secondary-dark);
-  padding: 2rem;
-  border-radius: 8px;
-  width: 80%;
-  max-width: 600px;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-}
-
-.update-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-.form-group textarea {
-  padding: 0.5rem;
-  border: 1px solid var(--primary-dark);
-  border-radius: 6px;
-}
-
-.file-upload-container {
-  position: relative;
-  height: 120px;
-  margin-bottom: 1rem;
-}
-
-.file-input {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 2;
-}
-
-.file-upload-box {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  border: 2px dashed var(--primary-dark);
-  border-radius: 6px;
-  pointer-events: none;
-}
-
-.upload-icon {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.file-list {
-  margin-top: 0.5rem;
-  margin-left: 1rem;
-}
-
-.file-item {
-  margin-bottom: 0.25rem;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
-
-.btn-secondary {
-  background: var(--primary-dark);
-  color: white;
-}
-
-.updates-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.update-item {
-  background: var(--secondary-dark);
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-
-.update-header {
-  margin-bottom: 1rem;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.update-author {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-.update-date {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.update-content {
-  margin-bottom: 1rem;
-}
-
-.update-files {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.file-badge {
-  padding: 0.25rem 0.75rem;
-  background: var(--primary-dark);
-  border-radius: 6px;
-}
-
-.file-icon {
-  margin-right: 0.5rem;
-}
-
-.empty-updates {
-  text-align: center;
-  padding: 1rem;
-  color: var(--text-secondary);
-  font-style: italic;
-}
-
-.checkbox-group {
-  margin: 1rem 0;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.checkbox-help {
-  display: block;
-  margin-top: 0.25rem;
-  margin-left: 1.5rem;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-input[type="text"],
-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--primary-dark);
-  border-radius: 6px;
-  background: var(--primary-dark);
-  color: var(--text-primary);
-}
-
-.delete-confirm {
-  max-width: 500px;
-}
-
-.confirm-message {
-  font-size: 1.1rem;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
-}
-
-.confirm-details {
-  margin-bottom: 2rem;
-  color: var(--text-secondary);
-}
-
-.confirm-delete-btn {
-  font-weight: 600;
-}
-
-.edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.collaborators-section {
-  margin-bottom: 1rem;
-}
-
-.current-collaborators {
-  margin-bottom: 1rem;
-}
-
-.collaborator-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.collab-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: var(--primary-dark);
-  border-radius: 6px;
-}
-
-.collab-user {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.collab-name {
-  font-weight: 500;
-}
-
-.search-container {
-  margin-bottom: 1rem;
-}
-
-.search-input-wrapper {
-  position: relative;
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--primary-dark);
-  border-radius: 6px;
-}
-
-.search-loading {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  transform: translateY(-100%);
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.search-results {
-  margin-top: 0.5rem;
-  margin-left: 1rem;
-}
-
-.search-result-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: var(--primary-dark);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--primary-dark);
-}
-
-.user-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.user-details {
-  flex: 1;
-}
-
-.user-name {
-  font-weight: 500;
-}
-
-.user-email {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.add-btn {
-  padding: 0.25rem 0.75rem;
-  background: var(--accent-blue, var(--primary));
-  color: white;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.add-btn:hover {
-  background: var(--accent-blue-dark, var(--primary-dark));
-}
-
-.new-collaborators {
-  margin-top: 1rem;
-}
-
-.collaborator-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.collab-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: var(--primary-dark);
-  border-radius: 6px;
-}
-
-.collab-user {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.collab-name {
-  font-weight: 500;
-}
-
-.collab-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  position: relative;
-}
-
-.role-select {
-  padding: 0.25rem;
-  border: 1px solid var(--primary-dark);
-  border-radius: 6px;
-}
-
-.remove-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-}
-
-.user-avatar.small {
-  width: 28px;
-  height: 28px;
-}
-
-.spinner-small {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-top: 2px solid var(--primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.collaborators-section h3 {
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
-  color: var(--text-primary);
-}
-
-.collaborators-section h4 {
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.no-results {
-  padding: 0.75rem;
-  color: var(--text-secondary);
-  font-style: italic;
-  font-size: 0.875rem;
-}
-
-.search-result-item {
-  margin-bottom: 0.5rem;
-  transition: all 0.2s ease;
-}
-
-.search-result-item:hover {
-  background: var(--primary);
-}
-
-.role-spinner {
-  position: absolute;
-  right: 80px;
-  margin-top: 5px;
-}
-
-.remove-collab-confirm {
-  max-width: 450px;
-}
-
-.confirm-message strong {
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.upload-progress {
-  margin-top: 1rem;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 10px;
-  background-color: var(--primary-dark);
-  border-radius: 5px;
-  overflow: hidden;
-  margin-bottom: 0.5rem;
-}
-
-.progress-fill {
-  height: 100%;
-  background-color: var(--primary);
-  transition: width 0.3s ease;
-}
-
-.progress-text {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.file-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.file-link {
-  text-decoration: none;
-  color: var(--accent-blue);
-  cursor: pointer;
-}
-
-.file-download-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.file-action-icon {
-  font-size: 1.5rem;
-}
+<style>
+/* Component-specific styles only */
+/* The shared styles are now in the global stylesheets */
 </style> 
