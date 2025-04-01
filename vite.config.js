@@ -4,5 +4,5 @@ import vue from '@vitejs/plugin-vue'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
-  base: './',  // This ensures assets are loaded with relative paths
+  base: '/',  // Use absolute paths for assets
 })

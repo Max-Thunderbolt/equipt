@@ -647,6 +647,17 @@ const handleFileDeleted = async (file) => {
   }
 }
 
+// Helper function to get CSS variable value (needed for SVG color)
+// IMPORTANT: This assumes your variables are defined on :root or a parent element
+// It might return an empty string if the variable isn't found immediately.
+// Consider a more robust way if variables are deeply nested or loaded async.
+function getCssVariableValue(variableName) {
+  if (typeof window !== 'undefined') {
+    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  } 
+  return '#888888'; // Fallback color
+}
+
 onMounted(() => {
   projectId.value = route.params.id
   if (projectId.value) {
@@ -659,264 +670,274 @@ onMounted(() => {
 
 <template>
   <div class="project-details">
-    <!-- Project Header -->
-      <div class="project-header">
-      <router-link :to="{ name: 'projects' }" class="back-button">
-        <span>←</span>
-        <span>Back to Projects</span>
-      </router-link>
-      <h1 class="project-title">{{ project?.name }}</h1>
-        </div>
-
-    <!-- Project Body -->
-    <div class="project-body">
-      <!-- Left Column - Files -->
-      <div class="project-files">
-        <div class="card-header">
-          <span class="icon">📁</span>
-          <span>Files</span>
-        </div>
-        <div v-if="loading" class="loading-spinner">
-          Loading files...
-        </div>
-        <FilesGrid
-          v-else
-          :files="project.files"
-          :loading="loading"
-          @delete="handleFileDeleted"
-          @download="handleFileDownload"
-        />
-      </div>
-
-      <!-- Middle Column - Description and Updates -->
-        <div class="project-info">
-        <!-- Description Card -->
-        <div class="description-card">
-          <div class="card-header">
-            <span class="icon">📝</span>
-            <span>Description</span>
-          </div>
-          <p v-if="project?.description">{{ project.description }}</p>
-          <p v-else class="text-secondary">No description provided</p>
-          </div>
-
-        <!-- Actions Card -->
-        <div class="actions-card">
-          <div class="card-header">
-            <span class="icon">⚡</span>
-            <span>Actions</span>
-                  </div>
-          <div class="actions-grid">
-            <button @click="openEditModal" class="action-button btn-edit">
-              ✏️ Edit Project
-            </button>
-            <button @click="openUpdateModal" class="action-button btn-update">
-              ➕ Add Update
-            </button>
-              </div>
-            </div>
-
-        <!-- Updates Card -->
-        <div class="updates-card">
-          <div class="card-header">
-            <span class="icon">🔄</span>
-            <span>Updates</span>
-          </div>
-          <div v-if="loading" class="loading-spinner">
-            Loading updates...
-          </div>
-          <div v-else-if="project.updates && project.updates.length > 0" class="updates-list">
-            <div v-for="update in project.updates" :key="update.id" class="update-item">
-              <div class="update-avatar">
-                <img 
-                  v-if="update.user?.avatar_url" 
-                  :src="update.user.avatar_url" 
-                  :alt="update.user.display_name"
-                />
-                <span v-else class="avatar-placeholder">
-                  {{ update.user?.display_name?.[0] || '?' }}
-                </span>
-                    </div>
-              <div class="update-content">
-                <div class="update-header">
-                  <span class="update-author">{{ update.user?.display_name }}</span>
-                  <span class="update-date">{{ formatDate(update.created_at) }}</span>
-                  </div>
-                <p class="update-text">{{ update.description }}</p>
-                  </div>
-                </div>
-              </div>
-          <p v-else class="text-secondary">No updates yet</p>
-            </div>
-        </div>
-
-      <!-- Right Column - Owner and Collaborators -->
-      <div class="owner-collab-group">
-        <!-- Owner Card -->
-        <div class="owner-card">
-          <div class="card-header">
-            <span class="icon">👑</span>
-            <span>Owner</span>
-          </div>
-          <div v-if="project?.owner" class="collaborator-item">
-            <div class="collaborator-avatar">
-              <img v-if="project.owner.avatar_url" :src="project.owner.avatar_url" :alt="project.owner.display_name" />
-              <span v-else>{{ project.owner.display_name?.[0] }}</span>
-            </div>
-            <div class="collaborator-info">
-              <span class="collaborator-name">{{ project.owner.display_name }}</span>
-              <span class="collaborator-role">Owner</span>
-          </div>
-        </div>
-      </div>
-
-        <!-- Collaborators Card -->
-        <div class="collaborators-card">
-          <div class="card-header">
-            <span class="icon">👥</span>
-            <span>Collaborators</span>
-            <!-- Add Collaborator Button (visible to owner/admin) -->
-            <button 
-              v-if="isOwner || userRole === 'admin'" 
-              @click="toggleAddCollaboratorSearch" 
-              class="add-collab-button"
-              title="Add Collaborator"
-            >
-              {{ showAddCollaboratorSearch ? '−' : '+' }}
-            </button>
-          </div>
-
-          <!-- Add Collaborator Search Section (conditionally shown) -->
-          <div v-if="showAddCollaboratorSearch && (isOwner || userRole === 'admin')" class="add-collaborator-section">
-            <div class="search-container">
-              <label for="user-search-card">Search users to invite</label>
-              <div class="search-input-wrapper">
-                <input
-                  id="user-search-card"
-                  v-model="searchQuery"
-                  type="text"
-                  placeholder="Search by name or email"
-                  class="search-input"
-                >
-                <div v-if="userSearchLoading" class="search-loading">
-                  <div class="spinner-small"></div>
-                </div>
-              </div>
-              
-              <!-- Search results -->
-              <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
-                <div 
-                  v-for="result in searchResults" 
-                  :key="result.id" 
-                  class="search-result-item"
-                  @click="addCollaborator(result)"
-                >
-              <div class="user-info">
-                     <div class="user-avatar small">
-                       <img 
-                         v-if="result.avatar_url" 
-                         :src="result.avatar_url" 
-                         :alt="result.display_name"
-                    referrerpolicy="no-referrer"
-                  >
-                  <div v-else class="avatar-placeholder">
-                         {{ result.display_name?.[0]?.toUpperCase() || '?' }}
-                  </div>
-                </div>
-                     <div class="user-details">
-                       <div class="user-name">{{ result.display_name }}</div>
-                       <div class="user-email">{{ result.email }}</div>
-                </div>
-                   </div>
-                   <div class="add-btn">+ Add</div>
-              </div>
-            </div>
-            
-              <div v-else-if="showSearchResults && searchResults.length === 0 && !userSearchLoading" class="no-results">
-                No users found
-              </div>
-              <div v-if="editError" class="error-message small-error">
-                {{ editError }}
-              </div>
-               <div v-if="userSearchError" class="error-message small-error">
-                Error searching users: {{ userSearchError }}
-              </div>
-            </div>
-            </div>
-            
-          <!-- Existing Collaborators List -->
-          <div v-if="project.collaborators && project.collaborators.length > 0" class="collaborators-list">
-            <div v-for="collab in project.collaborators" :key="collab.user?.id || collab.id" class="collaborator-item manage-collab-item">
-              <!-- Collaborator Info (Avatar and Name) -->
-              <div class="collaborator-info-main">
-                  <div class="collaborator-avatar">
-                    <img 
-                      v-if="collab.user?.avatar_url" 
-                      :src="collab.user.avatar_url" 
-                      :alt="collab.user.display_name"
-                       referrerpolicy="no-referrer"
-                    />
-                    <span v-else class="avatar-placeholder">
-                      {{ collab.user?.display_name?.[0] || '?' }}
-                    </span>
-            </div>
-                  <div class="collaborator-info">
-                    <span class="collaborator-name">{{ collab.user?.display_name || 'Unknown User' }}</span>
-                     <!-- Display role as text if user is not owner/admin -->
-                    <span v-if="!(isOwner || userRole === 'admin')" class="collaborator-role">{{ collab.role }}</span>
-          </div>
-        </div>
-        
-              <!-- Management Controls (visible to owner/admin) -->
-              <div v-if="isOwner || userRole === 'admin'" class="collaborator-controls">
-                  <select 
-                    v-if="collab.user_id !== project.owner_id" 
-                    :value="collab.role" 
-                    class="role-select"
-                    @change="updateCollaboratorRole(collab.user_id, $event.target.value)"
-                    :disabled="updatingRoleFor === collab.user_id"
-                    title="Change role"
-                  >
-                    <option value="viewer">Viewer</option>
-                    <option value="editor">Editor</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                  <span v-else class="role-badge owner">👑 Owner</span> 
-                  
-                  <div v-if="updatingRoleFor === collab.user_id" class="spinner-small role-spinner"></div>
-                  
-                  <button 
-                    v-if="collab.user_id !== project.owner_id"
-                    type="button" 
-                    class="remove-btn icon-btn" 
-                    @click="openRemoveCollaboratorConfirm(collab)"
-                    title="Remove collaborator"
-                    :disabled="removingCollaborator && selectedCollaboratorToRemove?.user_id === collab.user_id"
-                  >
-                    🗑️ <!-- Trash can icon -->
-                  </button>
-        </div>
-              <!-- Display role as text if user IS owner/admin but it's the owner row -->
-               <div v-else-if="collab.user_id === project.owner_id" class="collaborator-controls">
-                 <span class="role-badge owner">👑 Owner</span>
-               </div>
-
-            </div>
-          </div>
-          <p v-else class="text-secondary">No collaborators yet.</p>
-        </div>
-      </div>
-      </div>
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-message">
+      Loading project details...
     </div>
 
-    <!-- Update Modal -->
-  <div v-if="isUpdateModalOpen" class="modal">
+    <!-- Error State -->
+    <div v-else-if="error" class="error-message">
+      Error loading project: {{ error }}
+    </div>
+
+    <!-- Content State (Main v-else block) -->
+    <div v-else class="project-content-wrapper">
+      <!-- Check project object is valid before rendering anything inside -->
+      <div v-if="project" class="project-content">
+        <!-- Project Header -->
+        <div class="project-header">
+          <router-link :to="{ name: 'projects' }" class="back-button">
+            <span>←</span>
+            <span>Back to Projects</span>
+          </router-link>
+          <h1 class="project-title">{{ project.name || 'Untitled Project' }}</h1>
+        </div>
+
+        <!-- Project Body -->
+        <div class="project-body">
+          <!-- Left Column - Files -->
+          <div class="project-files">
+            <div class="card-header">
+              <span class="icon">📁</span>
+              <span>Files</span>
+            </div>
+            <!-- FilesGrid needs :files, pass empty array if project.files is null/undefined -->
+            <FilesGrid
+              :files="project.files || []" 
+              :loading="false" 
+              @delete="handleFileDeleted"
+              @download="handleFileDownload"
+            />
+          </div>
+
+          <!-- Middle Column - Description, Actions, Updates -->
+          <div class="project-info">
+            <!-- Description Card -->
+            <div class="description-card">
+              <div class="card-header">
+                <span class="icon">📝</span>
+                <span>Description</span>
+              </div>
+              <p v-if="project.description">{{ project.description }}</p>
+              <p v-else class="text-secondary">No description provided</p>
+            </div>
+
+            <!-- Actions Card -->
+            <div class="actions-card">
+              <div class="card-header">
+                <span class="icon">⚡</span>
+                <span>Actions</span>
+              </div>
+              <div class="actions-grid">
+                <button @click="openEditModal" class="action-button btn-edit">
+                  ✏️ Edit Project
+                </button>
+                <button @click="openUpdateModal" class="action-button btn-update">
+                  ➕ Add Update
+                </button>
+              </div>
+            </div>
+
+            <!-- Updates Card -->
+            <div class="updates-card">
+              <div class="card-header">
+                <span class="icon">🔄</span>
+                <span>Updates</span>
+              </div>
+              <!-- Check updates array -->
+              <div v-if="!project.updates || project.updates.length === 0" class="text-secondary updates-empty">
+                No updates yet.
+              </div>
+              <div v-else class="updates-list">
+                <div v-for="update in project.updates" :key="update.id" class="update-item">
+                  <div class="update-avatar">
+                    <img
+                      v-if="update.user?.avatar_url"
+                      :src="update.user.avatar_url"
+                      :alt="update.user.display_name || 'User Avatar'"
+                    />
+                    <span v-else class="avatar-placeholder">
+                      {{ update.user?.display_name?.[0] || '?' }}
+                    </span>
+                  </div>
+                  <div class="update-content">
+                    <div class="update-header">
+                      <span class="update-author">{{ update.user?.display_name || 'Unknown User' }}</span>
+                      <span class="update-date">{{ formatDate(update.created_at) }}</span>
+                    </div>
+                    <p class="update-text">{{ update.description }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column - Owner and Collaborators -->
+          <div class="owner-collab-group">
+            <!-- Owner Card -->
+            <div class="owner-card">
+              <div class="card-header">
+                <span class="icon">👑</span>
+                <span>Owner</span>
+              </div>
+              <!-- Check owner object -->
+              <div v-if="project.owner" class="collaborator-item owner-display">
+                <div class="collaborator-avatar">
+                  <img v-if="project.owner.avatar_url" :src="project.owner.avatar_url" :alt="project.owner.display_name" />
+                  <span v-else>{{ project.owner.display_name?.[0] || '?' }}</span>
+                </div>
+                <div class="collaborator-info">
+                  <span class="collaborator-name">{{ project.owner.display_name }}</span>
+                  <span class="collaborator-role">Owner</span>
+                </div>
+              </div>
+              <p v-else class="text-secondary owner-missing">Owner information not available.</p>
+            </div>
+
+            <!-- Collaborators Card -->
+            <div class="collaborators-card">
+              <div class="card-header">
+                <span class="icon">👥</span>
+                <span>Collaborators</span>
+                <button
+                  v-if="isOwner || userRole === 'admin'"
+                  @click="toggleAddCollaboratorSearch"
+                  class="add-collab-button"
+                  title="Add Collaborator"
+                >
+                  {{ showAddCollaboratorSearch ? '−' : '+' }}
+                </button>
+              </div>
+
+              <!-- Add Collaborator Section -->
+              <div v-if="showAddCollaboratorSearch && (isOwner || userRole === 'admin')" class="add-collaborator-section">
+                <div class="search-container">
+                  <label for="user-search-card">Search users to invite</label>
+                  <div class="search-input-wrapper">
+                    <input
+                      id="user-search-card"
+                      v-model="searchQuery"
+                      type="text"
+                      placeholder="Search by name or email"
+                      class="search-input"
+                    /> <!-- Self-closed input -->
+                    <div v-if="userSearchLoading" class="search-loading">
+                      <div class="spinner-small"></div>
+                    </div>
+                  </div>
+                  <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
+                    <div
+                      v-for="result in searchResults"
+                      :key="result.id"
+                      class="search-result-item"
+                      @click="addCollaborator(result)"
+                    >
+                      <div class="user-info">
+                        <div class="user-avatar small">
+                          <img
+                            v-if="result.avatar_url"
+                            :src="result.avatar_url"
+                            :alt="result.display_name"
+                            referrerpolicy="no-referrer"
+                          /> <!-- Self-closed img -->
+                          <div v-else class="avatar-placeholder">
+                            {{ result.display_name?.[0]?.toUpperCase() || '?' }}
+                          </div>
+                        </div>
+                        <div class="user-details">
+                          <div class="user-name">{{ result.display_name }}</div>
+                          <div class="user-email">{{ result.email }}</div>
+                        </div>
+                      </div>
+                      <div class="add-btn">+ Add</div>
+                    </div>
+                  </div>
+                  <div v-else-if="showSearchResults && searchResults.length === 0 && !userSearchLoading" class="no-results">
+                    No users found
+                  </div>
+                  <div v-if="editError" class="error-message small-error">
+                    {{ editError }}
+                  </div>
+                  <div v-if="userSearchError" class="error-message small-error">
+                    Error searching users: {{ userSearchError }}
+                  </div>
+                </div>
+              </div> <!-- End Add Collaborator Section -->
+
+              <!-- Collaborators List -->
+              <div v-if="!project.collaborators || project.collaborators.length === 0" class="text-secondary collabs-empty">
+                No collaborators yet.
+              </div>
+              <div v-else class="collaborators-list">
+                <div v-for="collab in project.collaborators" :key="collab.user?.id || collab.id" class="collaborator-item manage-collab-item">
+                  <!-- Info Part -->
+                  <div class="collaborator-info-main">
+                    <div class="collaborator-avatar">
+                      <img
+                        v-if="collab.user?.avatar_url"
+                        :src="collab.user.avatar_url"
+                        :alt="collab.user.display_name || 'User Avatar'"
+                        referrerpolicy="no-referrer"
+                      /> <!-- Self-closed img -->
+                      <span v-else class="avatar-placeholder">
+                        {{ collab.user?.display_name?.[0] || '?' }}
+                      </span>
+                    </div>
+                    <div class="collaborator-info">
+                      <span class="collaborator-name">{{ collab.user?.display_name || 'Unknown User' }}</span>
+                      <!-- Show text role only if not owner/admin -->
+                      <span v-if="!(isOwner || userRole === 'admin')" class="collaborator-role">{{ collab.role }}</span>
+                    </div>
+                  </div>
+                  <!-- Controls Part (Only for Owner/Admin) -->
+                  <div v-if="isOwner || userRole === 'admin'" class="collaborator-controls">
+                    <!-- Show Owner badge if it's the owner -->
+                    <span v-if="collab.user_id === project.owner_id" class="role-badge owner">👑 Owner</span>
+                    <!-- Show Dropdown and Remove button otherwise -->
+                    <template v-else>
+                      <select
+                        :value="collab.role"
+                        class="role-select"
+                        @change="updateCollaboratorRole(collab.user_id, $event.target.value)"
+                        :disabled="updatingRoleFor === collab.user_id"
+                        title="Change role"
+                      >
+                        <option value="viewer">Viewer</option>
+                        <option value="editor">Editor</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                      <div v-if="updatingRoleFor === collab.user_id" class="spinner-small role-spinner"></div>
+                      <button
+                        type="button"
+                        class="remove-btn icon-btn"
+                        @click="openRemoveCollaboratorConfirm(collab)"
+                        title="Remove collaborator"
+                        :disabled="removingCollaborator && selectedCollaboratorToRemove?.user_id === collab.user_id"
+                      >
+                        🗑️
+                      </button>
+                    </template>
+                  </div>
+                </div> <!-- End v-for collab item -->
+              </div> <!-- End collaborators-list -->
+            </div> <!-- End collaborators-card -->
+          </div> <!-- End owner-collab-group -->
+        </div> <!-- End project-body -->
+      </div> <!-- End v-if="project" -->
+
+      <!-- Fallback if project is null after loading/error checks (shouldn't normally happen) -->
+      <div v-else class="error-message">
+        Project data could not be displayed.
+      </div>
+    </div> <!-- End v-else (main content wrapper) -->
+
+    <!-- Modals -->
+    <div v-if="isUpdateModalOpen" class="modal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Add Progress / Update Project</h2>
           <button class="close-button" @click="closeUpdateModal">×</button>
         </div>
-        
         <form @submit.prevent="submitUpdate" class="update-form">
           <div class="form-group">
             <label for="update-description">What changes have you made?</label>
@@ -928,7 +949,6 @@ onMounted(() => {
               rows="4"
             ></textarea>
           </div>
-          
           <div class="form-group">
             <label for="update-files">Upload New Files</label>
             <div class="file-upload-container">
@@ -958,11 +978,9 @@ onMounted(() => {
               <span class="progress-text">{{ uploadProgress }}% uploaded</span>
             </div>
           </div>
-          
           <div v-if="updateError" class="error-message">
             {{ updateError }}
           </div>
-          
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="closeUpdateModal">Cancel</button>
             <button type="submit" class="btn btn-success" :disabled="submitting">
@@ -972,15 +990,12 @@ onMounted(() => {
         </form>
       </div>
     </div>
-
-  <!-- Edit Project Modal (Collaborator section removed) -->
-  <div v-if="isEditModalOpen" class="modal">
+    <div v-if="isEditModalOpen" class="modal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-        <h2>Edit Project Details</h2>
+          <h2>Edit Project Details</h2>
           <button class="close-button" @click="closeEditModal">×</button>
         </div>
-        
         <form @submit.prevent="submitEdit" class="edit-form">
           <div class="form-group">
             <label for="edit-name">Project Name</label>
@@ -992,7 +1007,6 @@ onMounted(() => {
               placeholder="Enter project name"
             >
           </div>
-          
           <div class="form-group">
             <label for="edit-description">Description</label>
             <textarea
@@ -1002,7 +1016,6 @@ onMounted(() => {
               rows="4"
             ></textarea>
           </div>
-          
           <div class="form-group checkbox-group">
             <label class="checkbox-label">
               <input
@@ -1013,11 +1026,9 @@ onMounted(() => {
             </label>
             <small class="checkbox-help">Public projects are visible to everyone</small>
           </div>
-          
           <div v-if="editError" class="error-message">
             {{ editError }}
           </div>
-          
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="closeEditModal">Cancel</button>
             <button type="submit" class="btn btn-primary" :disabled="editSubmitting">
@@ -1027,15 +1038,12 @@ onMounted(() => {
         </form>
       </div>
     </div>
-
-    <!-- Delete Confirmation Dialog -->
-  <div v-if="isDeleteConfirmOpen" class="modal">
+    <div v-if="isDeleteConfirmOpen" class="modal">
       <div class="modal-content delete-confirm" @click.stop>
         <div class="modal-header">
           <h2>Delete Project</h2>
           <button class="close-button" @click="closeDeleteConfirm">×</button>
         </div>
-        
         <div class="confirm-content">
           <p class="confirm-message">
             Are you sure you want to delete this project? This action cannot be undone.
@@ -1043,16 +1051,14 @@ onMounted(() => {
           <p class="confirm-details">
             This will permanently delete all project files, updates, and remove all collaborators.
           </p>
-          
           <div v-if="deleteError" class="error-message">
             {{ deleteError }}
           </div>
-          
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="closeDeleteConfirm">Cancel</button>
-            <button 
-              type="button" 
-              class="btn btn-danger confirm-delete-btn" 
+            <button
+              type="button"
+              class="btn btn-danger confirm-delete-btn"
               :disabled="deleteSubmitting"
               @click="deleteProject"
             >
@@ -1062,15 +1068,12 @@ onMounted(() => {
         </div>
       </div>
     </div>
-
-    <!-- Remove Collaborator Confirmation Dialog -->
-  <div v-if="isRemoveCollabConfirmOpen" class="modal">
+    <div v-if="isRemoveCollabConfirmOpen" class="modal">
       <div class="modal-content remove-collab-confirm" @click.stop>
         <div class="modal-header">
           <h2>Remove Collaborator</h2>
           <button class="close-button" @click="closeRemoveCollaboratorConfirm">×</button>
         </div>
-        
         <div class="confirm-content">
           <p class="confirm-message">
             Are you sure you want to remove 
@@ -1080,21 +1083,21 @@ onMounted(() => {
           <p class="confirm-details">
             They will lose access to this project and will need to be invited again to regain access.
           </p>
-          
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="closeRemoveCollaboratorConfirm">Cancel</button>
-            <button 
-              type="button" 
-              class="btn btn-danger" 
+            <button
+              type="button"
+              class="btn btn-danger"
               @click="removeCollaborator"
               :disabled="removingCollaborator"
             >
               {{ removingCollaborator ? 'Removing...' : 'Remove Collaborator' }}
             </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </div> <!-- End .project-details -->
 </template>
 
 <style scoped>
@@ -1147,39 +1150,9 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
-/* Common Card Styling */
-.project-files > div,
-.project-info > div,
-.owner-collab-group > div {
-  background-color: var(--color-background-soft);
-  border-radius: var(--border-radius-large);
-  padding: 1.5rem;
-  box-shadow: var(--shadow-elevation-low);
-  margin-bottom: 1.5rem; /* Add space between cards in the same column */
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-heading);
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 0.75rem;
-}
-
-.card-header .icon {
-  font-size: 1.3rem;
-}
-
 /* Left Column - Files */
 .project-files {
   /* Styles specific to the files column container if needed */
-}
-.project-files .card-header {
-  /* Styles for the Files card header */
 }
 .project-files .loading-spinner {
   text-align: center;
@@ -1192,11 +1165,6 @@ onMounted(() => {
 .project-info {
   display: flex;
   flex-direction: column;
-}
-
-.description-card p {
-  color: var(--color-text);
-  line-height: 1.6;
 }
 
 .text-secondary {
@@ -1237,105 +1205,10 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
-.update-item {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: var(--color-background);
-  border-radius: var(--border-radius);
-}
-
-.update-avatar {
-  flex-shrink: 0;
-}
-
-.update-avatar img,
-.update-avatar .avatar-placeholder {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-background-mute);
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-.update-content {
-  flex-grow: 1;
-}
-
-.update-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 0.5rem;
-}
-
-.update-author {
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.update-date {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-}
-
-.update-text {
-  color: var(--color-text);
-  line-height: 1.5;
-  margin: 0;
-}
-
 /* Right Column - Owner and Collaborators */
 .owner-collab-group {
   display: flex;
   flex-direction: column;
-}
-
-.collaborator-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  background-color: var(--color-background);
-  border-radius: var(--border-radius);
-  margin-bottom: 0.75rem; /* Space between collaborators */
-}
-
-.collaborator-avatar {
-  flex-shrink: 0;
-}
-
-.collaborator-avatar img,
-.collaborator-avatar span {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-background-mute);
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-.collaborator-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.collaborator-name {
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.collaborator-role {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-  text-transform: capitalize;
 }
 
 .collaborators-list {
@@ -1344,7 +1217,7 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
-/* Modals - Basic Styling (assuming more specific modal styles exist elsewhere or in modal components) */
+/* Modals - Basic Styling */
 .modal {
   /* Basic positioning and backdrop */
   position: fixed;
@@ -1550,35 +1423,62 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  flex-shrink: 0; /* Prevent controls from shrinking */
 }
 
 .role-select {
   padding: 0.4rem 0.6rem;
+  border-radius: var(--border-radius-small);
   border: 1px solid var(--color-border);
-  border-radius: var(--border-radius);
-  background-color: var(--color-background-mute);
+  background-color: var(--color-background);
   color: var(--color-text);
-  font-size: 0.85rem;
   cursor: pointer;
-  max-width: 100px; /* Prevent select from becoming too wide */
+  font-size: 0.9rem;
+  appearance: none;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23888888%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.4-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E');
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 0.65em auto;
+  padding-right: 2rem;
+}
+
+.role-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.role-spinner {
+  margin-left: -0.5rem;
+  margin-right: 0.5rem;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  color: var(--color-danger);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.4rem;
+  line-height: 1;
+}
+
+.remove-btn:hover {
+  color: var(--color-danger-hover);
+}
+
+.remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .role-badge {
-  font-size: 0.85rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--border-radius);
-  color: var(--color-text);
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--border-radius-small);
   font-weight: 500;
 }
 .role-badge.owner {
-   display: inline-flex;
-   align-items: center;
-   gap: 0.3em;
-   background-color: transparent; /* Remove background if only icon needed */
-   color: var(--color-warning); /* Use warning color for owner */
-   padding: 0.25rem 0; /* Adjust padding */
-   font-weight: 600;
+  background-color: var(--color-accent-secondary-soft);
+  color: var(--color-accent-secondary);
 }
 
 .icon-btn {
@@ -1586,24 +1486,20 @@ onMounted(() => {
   border: none;
   cursor: pointer;
   padding: 0.25rem;
-  font-size: 1.1rem; /* Adjust icon size */
+  font-size: 1.1rem;
   line-height: 1;
   border-radius: var(--border-radius-small);
   transition: background-color 0.2s ease, color 0.2s ease;
-  color: var(--color-text-secondary); /* Default subtle color */
+  color: var(--color-text-secondary);
 }
 
 .icon-btn:hover {
   background-color: var(--color-background-mute);
 }
 
-.icon-btn.remove-btn {
-  /* Keep default subtle color */
-}
-
 .icon-btn.remove-btn:hover {
-  color: var(--color-danger); /* Red color on hover for delete */
-  background-color: var(--color-danger-soft); /* Slight red background on hover */
+  color: var(--color-danger);
+  background-color: var(--color-danger-soft);
 }
 
 .icon-btn:disabled {
@@ -1612,154 +1508,22 @@ onMounted(() => {
   background-color: transparent;
 }
 
-/* Adjust spinner position if needed */
 .spinner-small.role-spinner {
-  margin-left: 0; /* Reset margin if gap handles spacing */
-}
-
-/* Adjustments for Edit Modal (since collaborator section removed) */
-.edit-form {
-  /* Remove styles specific to collaborators-section if any were added before */
-}
-
-/* Spinner (re-add if not present globally) */
-.spinner-small {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Ensure user avatar styles are available if not global */
-.user-avatar.small {
-  width: 32px;
-  height: 32px;
-  font-size: 0.9rem;
-}
-.user-avatar img, 
-.user-avatar .avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover; /* Ensure images cover the area */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-background-mute);
-  color: var(--color-text);
-  font-weight: 600;
-}
-
-/* Responsive Adjustments might be needed for the new controls */
-@media (max-width: 768px) {
-   .manage-collab-item {
-      flex-direction: column; /* Stack info and controls on small screens */
-      align-items: flex-start; /* Align items left */
-      gap: 0.5rem;
-   }
-   .collaborator-controls {
-     margin-left: calc(40px + 1rem); /* Align controls under name/role based on avatar size + gap */
-     padding-bottom: 0.5rem; /* Add spacing below controls */
-   }
-   .collaborators-card .card-header {
-     flex-wrap: wrap; /* Allow header items to wrap */
-   }
-   .add-collab-button {
-     margin-left: auto; /* Keep button pushed right */
-   }
-}
-
-/* --- UI Refinements --- */
-
-/* 1. Files Card Cleanup */
-.project-files .card-header {
-  /* Kept existing styles, ensure consistency */
-}
-
-/* Apply styles directly to FilesGrid via a class or target its container */
-.project-files ::v-deep(.files-grid) { /* If FilesGrid has a root class 'files-grid' */
-  /* Example: Add padding, adjust layout if needed */
-  padding-top: 0.5rem; /* Add some space below header */
-}
-
-/* Or style the FilesGrid component instance if it was given a class in the template */
-.project-files FilesGrid {
-  /* margin-top: 0.5rem; */ /* Alternative spacing */
-}
-
-/* Ensure FilesGrid component takes full width if needed */
-.project-files {
-  /* Potentially set display: flex; flex-direction: column; if needed */
-}
-
-/* 2. Collaborator Controls Neatening */
-.collaborator-controls {
-  gap: 0.75rem; /* Adjust gap for better spacing */
-}
-
-.role-select {
-  /* Existing styles are likely okay, ensure padding is balanced */
-  padding: 0.4rem 0.6rem;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  font-size: 1.1rem; /* Adjust icon size */
-  line-height: 1;
-  border-radius: var(--border-radius-small);
-  transition: background-color 0.2s ease, color 0.2s ease;
-  color: var(--color-text-secondary); /* Default subtle color */
-}
-
-.icon-btn:hover {
-  background-color: var(--color-background-mute);
-}
-
-.icon-btn.remove-btn {
-  /* Keep default subtle color */
-}
-
-.icon-btn.remove-btn:hover {
-  color: var(--color-danger); /* Red color on hover for delete */
-  background-color: var(--color-danger-soft); /* Slight red background on hover */
-}
-
-.icon-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background-color: transparent;
-}
-
-/* Remove old .remove-btn specific styles if superseded by .icon-btn */
-/* .remove-btn { ... } */
-
-/* Adjust spinner position if needed */
-.spinner-small.role-spinner {
-  margin-left: 0; /* Reset margin if gap handles spacing */
+  margin-left: 0;
 }
 
 .role-badge.owner {
-   display: inline-flex;
-   align-items: center;
-   gap: 0.3em;
-   background-color: transparent; /* Remove background if only icon needed */
-   color: var(--color-warning); /* Use warning color for owner */
-   padding: 0.25rem 0; /* Adjust padding */
-   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  background-color: transparent;
+  color: var(--color-warning);
+  padding: 0.25rem 0;
+  font-weight: 600;
 }
 
 /* 3. Action Button Coloring */
 .action-button {
-  /* Keep existing base styles */
   padding: 0.75rem 1rem;
   border: none;
   border-radius: var(--border-radius);
@@ -1767,10 +1531,10 @@ onMounted(() => {
   transition: background-color 0.2s ease, transform 0.1s ease;
   text-align: center;
   font-weight: 500;
-  display: inline-flex; /* Align icon and text */
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem; /* Space between icon and text */
+  gap: 0.5rem;
 }
 
 .action-button:hover {
@@ -1778,20 +1542,97 @@ onMounted(() => {
 }
 
 .action-button.btn-edit {
-  background-color: var(--color-primary); 
-  color: var(--color-button-text, white); /* Use button text color variable or default */
+  background-color: var(--color-primary);
+  color: var(--color-button-text, white);
 }
 .action-button.btn-edit:hover {
   background-color: var(--color-primary-hover);
 }
 
 .action-button.btn-update {
-  background-color: var(--color-success); 
-  color: var(--color-button-text, white); /* Use button text color variable or default */
+  background-color: var(--color-success);
+  color: var(--color-button-text, white);
 }
 .action-button.btn-update:hover {
   background-color: var(--color-success-hover);
 }
 
-/* ... rest of styles ... */
+/* 4. Card Rounding (Restored) */
+.updates-card,
+.owner-card,
+.collaborators-card {
+  border-radius: var(--border-radius-large); /* Removed !important */
+  /* overflow: hidden; */ /* Optional: Consider adding if content overflows */
+}
+
+.updates-list .update-item,
+.collaborators-list .collaborator-item,
+.owner-card .collaborator-item { 
+  border-radius: var(--border-radius); /* Ensure inner items keep smaller radius */
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+   /* ... keep existing responsive styles ... */
+}
+
+.loading-message,
+.error-message {
+  text-align: center;
+  padding: 4rem 2rem;
+  font-size: 1.1rem;
+  color: var(--color-text-secondary);
+}
+
+.error-message {
+  color: var(--color-danger);
+}
+
+.updates-empty,
+.owner-missing,
+.collabs-empty {
+   padding: 1rem 0;
+   font-style: italic;
+}
+
+.owner-missing {
+   /* Adjust padding if needed */
+   padding-left: 0.75rem; 
+}
+
+.collabs-empty {
+  /* Adjust padding if needed */
+   padding: 0.75rem;
+}
+
+.owner-display {
+  /* Use same class as collaborator-item for consistency or make specific */
+  margin-bottom: 0; /* Remove extra margin if needed */
+}
+
+.update-avatar img,
+.update-avatar .avatar-placeholder,
+.collaborator-avatar img,
+.collaborator-avatar span /* Target both img and span placeholder */ {
+  width: 40px; /* Ensure width */
+  height: 40px; /* Ensure height is equal to width */
+  border-radius: 50%; /* Keep this */
+  display: flex; /* Use flex for centering placeholder text */
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-background-mute); /* Fallback background */
+  color: var(--color-text); /* Placeholder text color */
+  font-weight: 600;
+  object-fit: cover; /* Prevent image distortion */
+  overflow: hidden; /* Hide any potential overflow */
+}
+
+/* Remove redundant/potentially conflicting separate rules */
+/* .update-avatar .avatar-placeholder { ... } */
+/* .collaborator-avatar span { ... } */
+
+.update-content {
+  /* ... existing styles ... */
+}
+
 </style> 

@@ -8,6 +8,10 @@
   --accent-purple: #8b5cf6;
   --error: #ef4444;
   
+  /* Borders */
+  --border-radius: 6px;
+  --border-radius-large: 12px;
+  
   /* Typography */
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   line-height: 1.5;
