@@ -63,6 +63,9 @@ const selectedCollaboratorToRemove = ref(null)
 const updatingRoleFor = ref(null)
 const removingCollaborator = ref(false)
 
+// State to control visibility of the add collaborator search input
+const showAddCollaboratorSearch = ref(false)
+
 const openUpdateModal = () => {
   updateData.value = {
     description: '',
@@ -332,69 +335,69 @@ watch(searchQuery, async (newQuery) => {
   }
 })
 
-// Function to add a collaborator
+// Function to toggle the search input visibility
+const toggleAddCollaboratorSearch = () => {
+  showAddCollaboratorSearch.value = !showAddCollaboratorSearch.value
+  // Clear search when hiding
+  if (!showAddCollaboratorSearch.value) {
+    searchQuery.value = ''
+    showSearchResults.value = false
+  }
+}
+
+// Modify addCollaborator to hide search after adding
 const addCollaborator = (selectedUser) => {
   // Check if the user is already a collaborator in the project
   const isExistingCollaborator = project.value.collaborators.some(c => c.user && c.user.id === selectedUser.id)
-  
-  // Check if the user is already added as a new collaborator
-  const isAlreadyAdded = editProjectData.value.newCollaborators.some(c => c.id === selectedUser.id)
   
   if (isExistingCollaborator) {
     editError.value = `${selectedUser.display_name} is already a collaborator`
     return
   }
   
-  if (isAlreadyAdded) {
-    editError.value = `${selectedUser.display_name} has already been added`
-    return
-  }
-  
   // Add the new collaborator with default role 'viewer'
-  editProjectData.value.newCollaborators.push({
-    id: selectedUser.id,
-    display_name: selectedUser.display_name,
-    email: selectedUser.email,
-    avatar_url: selectedUser.avatar_url,
-    role: 'viewer'
-  })
+  addNewCollaboratorToDB(selectedUser)
   
-  // Clear search
+  // Clear search and hide input
   searchQuery.value = ''
   showSearchResults.value = false
+  showAddCollaboratorSearch.value = false
   editError.value = null
 }
 
-// Function to remove a new collaborator
-const removeNewCollaborator = (index) => {
-  editProjectData.value.newCollaborators.splice(index, 1)
-}
+// New function to add collaborator directly to DB
+const addNewCollaboratorToDB = async (selectedUser) => {
+  editSubmitting.value = true
+  editError.value = null
 
-// Function to change a new collaborator's role
-const changeNewCollaboratorRole = (index, role) => {
-  editProjectData.value.newCollaborators[index].role = role
-}
-
-// Open edit modal function with updated initialization
-const openEditModal = () => {
-  editProjectData.value = {
-    name: project.value.name || '',
-    description: project.value.description || '',
-    is_public: project.value.is_public || false,
-    newCollaborators: []
+  try {
+    const collaboratorRecord = {
+      project_id: projectId.value,
+      user_id: selectedUser.id,
+      role: 'viewer', // Default role
+      created_at: new Date().toISOString()
+    }
+    
+    const { error: collabError } = await supabase
+      .from(TABLES.PROJECT_COLLABORATORS)
+      .insert(collaboratorRecord)
+    
+    if (collabError) {
+      console.error('Error adding collaborator:', collabError)
+      throw new Error('Failed to add collaborator')
+    }
+    
+    // Refresh project data to show the new collaborator
+    await fetchProject()
+  } catch (err) {
+    console.error('Error adding collaborator directly:', err)
+    editError.value = err.message || 'Failed to add collaborator.'
+  } finally {
+    editSubmitting.value = false
   }
-  searchQuery.value = ''
-  showSearchResults.value = false
-  editError.value = null
-  isEditModalOpen.value = true
 }
 
-// Close edit modal function
-const closeEditModal = () => {
-  isEditModalOpen.value = false
-}
-
-// Update submit edit function to handle collaborator invites
+// Update submitEdit to remove collaborator adding logic
 const submitEdit = async () => {
   if (!editProjectData.value.name) {
     editError.value = 'Project name is required'
@@ -405,7 +408,7 @@ const submitEdit = async () => {
   editError.value = null
   
   try {
-    // Update the project
+    // Update the project details ONLY
     const { data, error } = await supabase
       .from(TABLES.PROJECTS)
       .update({
@@ -420,26 +423,7 @@ const submitEdit = async () => {
     
     if (error) throw error
     
-    // Add new collaborators if any
-    if (editProjectData.value.newCollaborators.length > 0) {
-      const collaboratorRecords = editProjectData.value.newCollaborators.map(c => ({
-        project_id: projectId.value,
-        user_id: c.id,
-        role: c.role,
-        created_at: new Date().toISOString()
-      }))
-      
-      const { error: collabError } = await supabase
-        .from(TABLES.PROJECT_COLLABORATORS)
-        .insert(collaboratorRecords)
-      
-      if (collabError) {
-        console.error('Error adding collaborators:', collabError)
-        throw new Error('Project updated, but failed to add collaborators')
-      }
-    }
-    
-    // Refresh project data
+    // Refresh project data (might not be strictly necessary if only project details changed, but good practice)
     await fetchProject()
     
     // Close modal
@@ -674,159 +658,259 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="project-details container">
-    <div v-if="loading" class="loading">
-      Loading project details...
-    </div>
-    <div v-else-if="error" class="error-message">
-      {{ error }}
-    </div>
-    <div v-else-if="project" class="project-content">
+  <div class="project-details">
+    <!-- Project Header -->
       <div class="project-header">
-        <div class="back-button" @click="router.go(-1)">
-          &larr; Back
+      <router-link :to="{ name: 'projects' }" class="back-button">
+        <span>←</span>
+        <span>Back to Projects</span>
+      </router-link>
+      <h1 class="project-title">{{ project?.name }}</h1>
         </div>
-        <h1>{{ project.name || project.title || 'Untitled Project' }}</h1>
-        <div class="project-meta">
-          <span class="date">Created {{ formatDate(project.created_at) }}</span>
-          <span class="version">v{{ project.version || '1.0.0' }}</span>
+
+    <!-- Project Body -->
+    <div class="project-body">
+      <!-- Left Column - Files -->
+      <div class="project-files">
+        <div class="card-header">
+          <span class="icon">📁</span>
+          <span>Files</span>
         </div>
+        <div v-if="loading" class="loading-spinner">
+          Loading files...
+        </div>
+        <FilesGrid
+          v-else
+          :files="project.files"
+          :loading="loading"
+          @delete="handleFileDeleted"
+          @download="handleFileDownload"
+        />
       </div>
 
-      <div class="project-body">
+      <!-- Middle Column - Description and Updates -->
         <div class="project-info">
-          <div class="info-card">
-            <h3 data-icon="description">Description</h3>
-            <p>{{ project.description || 'No description provided' }}</p>
+        <!-- Description Card -->
+        <div class="description-card">
+          <div class="card-header">
+            <span class="icon">📝</span>
+            <span>Description</span>
+          </div>
+          <p v-if="project?.description">{{ project.description }}</p>
+          <p v-else class="text-secondary">No description provided</p>
           </div>
 
-          <!-- Group Project Owner and Collaborators together -->
-          <div class="owner-collab-group">
-            <div class="info-card owner-card">
-              <h3 data-icon="owner">Project Owner</h3>
-              <div class="owner-info">
-                <div class="user-avatar">
-                  <img 
-                    v-if="project.owner?.avatar_url" 
-                    :src="project.owner.avatar_url" 
-                    :alt="project.owner.display_name"
-                    referrerpolicy="no-referrer"
-                  >
-                  <div v-else class="avatar-placeholder">
-                    {{ project.owner?.display_name?.[0]?.toUpperCase() || '?' }}
+        <!-- Actions Card -->
+        <div class="actions-card">
+          <div class="card-header">
+            <span class="icon">⚡</span>
+            <span>Actions</span>
                   </div>
-                </div>
-                <span>{{ project.owner?.display_name || 'Unknown' }}</span>
+          <div class="actions-grid">
+            <button @click="openEditModal" class="action-button btn-edit">
+              ✏️ Edit Project
+            </button>
+            <button @click="openUpdateModal" class="action-button btn-update">
+              ➕ Add Update
+            </button>
               </div>
             </div>
 
-            <div v-if="project.collaborators && project.collaborators.length > 0" class="info-card collab-card">
-              <h3 data-icon="collaborators">Collaborators</h3>
-              <div class="collaborators-grid">
-                <div v-for="collab in project.collaborators" :key="collab.user?.id || collab.id" class="collaborator-item">
-                  <div class="user-avatar small">
+        <!-- Updates Card -->
+        <div class="updates-card">
+          <div class="card-header">
+            <span class="icon">🔄</span>
+            <span>Updates</span>
+          </div>
+          <div v-if="loading" class="loading-spinner">
+            Loading updates...
+          </div>
+          <div v-else-if="project.updates && project.updates.length > 0" class="updates-list">
+            <div v-for="update in project.updates" :key="update.id" class="update-item">
+              <div class="update-avatar">
+                <img 
+                  v-if="update.user?.avatar_url" 
+                  :src="update.user.avatar_url" 
+                  :alt="update.user.display_name"
+                />
+                <span v-else class="avatar-placeholder">
+                  {{ update.user?.display_name?.[0] || '?' }}
+                </span>
+                    </div>
+              <div class="update-content">
+                <div class="update-header">
+                  <span class="update-author">{{ update.user?.display_name }}</span>
+                  <span class="update-date">{{ formatDate(update.created_at) }}</span>
+                  </div>
+                <p class="update-text">{{ update.description }}</p>
+                  </div>
+                </div>
+              </div>
+          <p v-else class="text-secondary">No updates yet</p>
+            </div>
+        </div>
+
+      <!-- Right Column - Owner and Collaborators -->
+      <div class="owner-collab-group">
+        <!-- Owner Card -->
+        <div class="owner-card">
+          <div class="card-header">
+            <span class="icon">👑</span>
+            <span>Owner</span>
+          </div>
+          <div v-if="project?.owner" class="collaborator-item">
+            <div class="collaborator-avatar">
+              <img v-if="project.owner.avatar_url" :src="project.owner.avatar_url" :alt="project.owner.display_name" />
+              <span v-else>{{ project.owner.display_name?.[0] }}</span>
+            </div>
+            <div class="collaborator-info">
+              <span class="collaborator-name">{{ project.owner.display_name }}</span>
+              <span class="collaborator-role">Owner</span>
+          </div>
+        </div>
+      </div>
+
+        <!-- Collaborators Card -->
+        <div class="collaborators-card">
+          <div class="card-header">
+            <span class="icon">👥</span>
+            <span>Collaborators</span>
+            <!-- Add Collaborator Button (visible to owner/admin) -->
+            <button 
+              v-if="isOwner || userRole === 'admin'" 
+              @click="toggleAddCollaboratorSearch" 
+              class="add-collab-button"
+              title="Add Collaborator"
+            >
+              {{ showAddCollaboratorSearch ? '−' : '+' }}
+            </button>
+          </div>
+
+          <!-- Add Collaborator Search Section (conditionally shown) -->
+          <div v-if="showAddCollaboratorSearch && (isOwner || userRole === 'admin')" class="add-collaborator-section">
+            <div class="search-container">
+              <label for="user-search-card">Search users to invite</label>
+              <div class="search-input-wrapper">
+                <input
+                  id="user-search-card"
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Search by name or email"
+                  class="search-input"
+                >
+                <div v-if="userSearchLoading" class="search-loading">
+                  <div class="spinner-small"></div>
+                </div>
+              </div>
+              
+              <!-- Search results -->
+              <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
+                <div 
+                  v-for="result in searchResults" 
+                  :key="result.id" 
+                  class="search-result-item"
+                  @click="addCollaborator(result)"
+                >
+              <div class="user-info">
+                     <div class="user-avatar small">
+                       <img 
+                         v-if="result.avatar_url" 
+                         :src="result.avatar_url" 
+                         :alt="result.display_name"
+                    referrerpolicy="no-referrer"
+                  >
+                  <div v-else class="avatar-placeholder">
+                         {{ result.display_name?.[0]?.toUpperCase() || '?' }}
+                  </div>
+                </div>
+                     <div class="user-details">
+                       <div class="user-name">{{ result.display_name }}</div>
+                       <div class="user-email">{{ result.email }}</div>
+                </div>
+                   </div>
+                   <div class="add-btn">+ Add</div>
+              </div>
+            </div>
+            
+              <div v-else-if="showSearchResults && searchResults.length === 0 && !userSearchLoading" class="no-results">
+                No users found
+              </div>
+              <div v-if="editError" class="error-message small-error">
+                {{ editError }}
+              </div>
+               <div v-if="userSearchError" class="error-message small-error">
+                Error searching users: {{ userSearchError }}
+              </div>
+            </div>
+            </div>
+            
+          <!-- Existing Collaborators List -->
+          <div v-if="project.collaborators && project.collaborators.length > 0" class="collaborators-list">
+            <div v-for="collab in project.collaborators" :key="collab.user?.id || collab.id" class="collaborator-item manage-collab-item">
+              <!-- Collaborator Info (Avatar and Name) -->
+              <div class="collaborator-info-main">
+                  <div class="collaborator-avatar">
                     <img 
                       v-if="collab.user?.avatar_url" 
                       :src="collab.user.avatar_url" 
                       :alt="collab.user.display_name"
-                      referrerpolicy="no-referrer"
-                    >
-                    <div v-else class="avatar-placeholder">
-                      {{ collab.user?.display_name?.[0]?.toUpperCase() || '?' }}
-                    </div>
-                  </div>
-                  <div class="user-details">
-                    <span class="user-name">{{ collab.user?.display_name || 'Unknown User' }}</span>
-                    <span class="role-icon" :class="collab.role" :title="collab.role"></span>
-                  </div>
-                </div>
-              </div>
+                       referrerpolicy="no-referrer"
+                    />
+                    <span v-else class="avatar-placeholder">
+                      {{ collab.user?.display_name?.[0] || '?' }}
+                    </span>
             </div>
+                  <div class="collaborator-info">
+                    <span class="collaborator-name">{{ collab.user?.display_name || 'Unknown User' }}</span>
+                     <!-- Display role as text if user is not owner/admin -->
+                    <span v-if="!(isOwner || userRole === 'admin')" class="collaborator-role">{{ collab.role }}</span>
           </div>
         </div>
+        
+              <!-- Management Controls (visible to owner/admin) -->
+              <div v-if="isOwner || userRole === 'admin'" class="collaborator-controls">
+                  <select 
+                    v-if="collab.user_id !== project.owner_id" 
+                    :value="collab.role" 
+                    class="role-select"
+                    @change="updateCollaboratorRole(collab.user_id, $event.target.value)"
+                    :disabled="updatingRoleFor === collab.user_id"
+                    title="Change role"
+                  >
+                    <option value="viewer">Viewer</option>
+                    <option value="editor">Editor</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  <span v-else class="role-badge owner">👑 Owner</span> 
+                  
+                  <div v-if="updatingRoleFor === collab.user_id" class="spinner-small role-spinner"></div>
+                  
+                  <button 
+                    v-if="collab.user_id !== project.owner_id"
+                    type="button" 
+                    class="remove-btn icon-btn" 
+                    @click="openRemoveCollaboratorConfirm(collab)"
+                    title="Remove collaborator"
+                    :disabled="removingCollaborator && selectedCollaboratorToRemove?.user_id === collab.user_id"
+                  >
+                    🗑️ <!-- Trash can icon -->
+                  </button>
+        </div>
+              <!-- Display role as text if user IS owner/admin but it's the owner row -->
+               <div v-else-if="collab.user_id === project.owner_id" class="collaborator-controls">
+                 <span class="role-badge owner">👑 Owner</span>
+               </div>
 
-        <div class="project-files">
-          <div class="info-card files-card">
-            <h3 data-icon="files">Files</h3>
-            <FilesGrid 
-              :files="project.files" 
-              layout="standard" 
-              viewMode="grid"
-              :allowDelete="isOwner || userRole === 'admin'"
-              emptyMessage="No files uploaded yet"
-              @delete="handleFileDeleted"
-              @download="handleFileDownload"
-              class="files-grid-improved files-grid-project"
-            />
-          </div>
-          
-          <div v-if="isOwner || userRole === 'admin' || userRole === 'editor'" class="info-card">
-            <h3 data-icon="settings">Project Actions</h3>
-            <div class="project-actions">
-              <button class="btn btn-success" @click="openUpdateModal">
-                <span class="icon">+</span> Add Progress / Update Project
-              </button>
-              <button v-if="isOwner || userRole === 'admin'" class="btn btn-primary" @click="openEditModal">
-                Edit Project
-              </button>
-              <button v-if="isOwner || userRole === 'admin'" class="btn btn-danger" @click="openDeleteConfirm">
-                Delete Project
-              </button>
             </div>
           </div>
+          <p v-else class="text-secondary">No collaborators yet.</p>
         </div>
       </div>
-
-      <div class="project-updates">
-        <h3 data-icon="updates">Project Updates</h3>
-        
-        <div v-if="project.updates && project.updates.length > 0" class="updates-list">
-          <div v-for="update in project.updates" :key="update.id" class="update-item">
-            <div class="update-header">
-              <div class="user-info">
-                <div class="user-avatar">
-                  <img 
-                    v-if="update.user?.avatar_url" 
-                    :src="update.user.avatar_url" 
-                    :alt="update.user.display_name"
-                    referrerpolicy="no-referrer"
-                  >
-                  <div v-else class="avatar-placeholder">
-                    {{ update.user?.display_name?.[0]?.toUpperCase() || '?' }}
-                  </div>
-                </div>
-                <div>
-                  <div class="update-author">{{ update.user?.display_name || 'Unknown User' }}</div>
-                  <div class="update-date">{{ formatDate(update.created_at) }}</div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="update-content">
-              <p class="update-text">{{ update.description }}</p>
-            </div>
-            
-            <div v-if="project.files" class="update-files">
-              <FilesGrid 
-                :files="project.files.filter(f => f.update_id === update.id)" 
-                layout="compact" 
-                viewMode="grid"
-                :allowDelete="isOwner || userRole === 'admin'"
-                emptyMessage="No files attached to this update"
-                @delete="handleFileDeleted"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div v-else class="empty-updates empty-state">
-          <p>No updates yet. Click "Add Progress / Update Project" to add the first update.</p>
-        </div>
       </div>
     </div>
 
     <!-- Update Modal -->
-    <div v-if="isUpdateModalOpen" class="modal-overlay" @click="closeUpdateModal">
+  <div v-if="isUpdateModalOpen" class="modal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Add Progress / Update Project</h2>
@@ -889,11 +973,11 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Edit Project Modal -->
-    <div v-if="isEditModalOpen" class="modal-overlay" @click="closeEditModal">
+  <!-- Edit Project Modal (Collaborator section removed) -->
+  <div v-if="isEditModalOpen" class="modal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h2>Edit Project</h2>
+        <h2>Edit Project Details</h2>
           <button class="close-button" @click="closeEditModal">×</button>
         </div>
         
@@ -930,142 +1014,6 @@ onMounted(() => {
             <small class="checkbox-help">Public projects are visible to everyone</small>
           </div>
           
-          <!-- Update the collaborator section in the Edit Project modal -->
-          <div class="form-group collaborators-section">
-            <h3>Invite Collaborators</h3>
-            
-            <!-- Existing collaborators -->
-            <div v-if="project.collaborators && project.collaborators.length > 0" class="current-collaborators">
-              <h4>Current Collaborators</h4>
-              <div class="collaborator-list">
-                <div v-for="collab in project.collaborators" :key="collab.user?.id" class="collab-item">
-                  <div class="collab-user">
-                    <div class="user-avatar small">
-                      <img 
-                        v-if="collab.user?.avatar_url" 
-                        :src="collab.user.avatar_url" 
-                        :alt="collab.user.display_name"
-                        referrerpolicy="no-referrer"
-                      >
-                      <div v-else class="avatar-placeholder">
-                        {{ collab.user?.display_name?.[0]?.toUpperCase() || '?' }}
-                      </div>
-                    </div>
-                    <span class="collab-name">{{ collab.user?.display_name || 'Unknown' }}</span>
-                  </div>
-                  <div class="collab-actions">
-                    <select 
-                      v-if="collab.user_id !== project.owner_id" 
-                      v-model="collab.role" 
-                      class="role-select"
-                      @change="updateCollaboratorRole(collab.user_id, collab.role)"
-                      :disabled="updatingRoleFor === collab.user_id"
-                    >
-                      <option value="viewer">Viewer</option>
-                      <option value="editor">Editor</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    <span v-else class="role-badge owner">Owner</span>
-                    <div v-if="updatingRoleFor === collab.user_id" class="spinner-small role-spinner"></div>
-                    <button 
-                      v-if="collab.user_id !== project.owner_id"
-                      type="button" 
-                      class="remove-btn" 
-                      @click="openRemoveCollaboratorConfirm(collab)"
-                      title="Remove collaborator"
-                    >×</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Search for users -->
-            <div class="search-container">
-              <label for="user-search">Search users to invite</label>
-              <div class="search-input-wrapper">
-                <input
-                  id="user-search"
-                  v-model="searchQuery"
-                  type="text"
-                  placeholder="Search by name or email"
-                  class="search-input"
-                >
-                <div v-if="userSearchLoading" class="search-loading">
-                  <div class="spinner-small"></div>
-                </div>
-              </div>
-              
-              <!-- Search results -->
-              <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
-                <div 
-                  v-for="result in searchResults" 
-                  :key="result.id" 
-                  class="search-result-item"
-                  @click="addCollaborator(result)"
-                >
-                  <div class="user-info">
-                    <div class="user-avatar small">
-                      <img 
-                        v-if="result.avatar_url" 
-                        :src="result.avatar_url" 
-                        :alt="result.display_name"
-                        referrerpolicy="no-referrer"
-                      >
-                      <div v-else class="avatar-placeholder">
-                        {{ result.display_name?.[0]?.toUpperCase() || '?' }}
-                      </div>
-                    </div>
-                    <div class="user-details">
-                      <div class="user-name">{{ result.display_name }}</div>
-                      <div class="user-email">{{ result.email }}</div>
-                    </div>
-                  </div>
-                  <div class="add-btn">+ Add</div>
-                </div>
-              </div>
-              
-              <div v-else-if="showSearchResults && searchResults.length === 0" class="no-results">
-                No users found with that name or email
-              </div>
-            </div>
-            
-            <!-- New collaborators to be added -->
-            <div v-if="editProjectData.newCollaborators.length > 0" class="new-collaborators">
-              <h4>Users to be added</h4>
-              <div class="collaborator-list">
-                <div v-for="(collab, index) in editProjectData.newCollaborators" :key="collab.id" class="collab-item">
-                  <div class="collab-user">
-                    <div class="user-avatar small">
-                      <img 
-                        v-if="collab.avatar_url" 
-                        :src="collab.avatar_url" 
-                        :alt="collab.display_name"
-                        referrerpolicy="no-referrer"
-                      >
-                      <div v-else class="avatar-placeholder">
-                        {{ collab.display_name?.[0]?.toUpperCase() || '?' }}
-                      </div>
-                    </div>
-                    <span class="collab-name">{{ collab.display_name }}</span>
-                  </div>
-                  <div class="collab-actions">
-                    <select v-model="collab.role" class="role-select">
-                      <option value="viewer">Viewer</option>
-                      <option value="editor">Editor</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    <button 
-                      type="button" 
-                      class="remove-btn" 
-                      @click="removeNewCollaborator(index)"
-                      title="Remove"
-                    >×</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
           <div v-if="editError" class="error-message">
             {{ editError }}
           </div>
@@ -1081,7 +1029,7 @@ onMounted(() => {
     </div>
 
     <!-- Delete Confirmation Dialog -->
-    <div v-if="isDeleteConfirmOpen" class="modal-overlay" @click="closeDeleteConfirm">
+  <div v-if="isDeleteConfirmOpen" class="modal">
       <div class="modal-content delete-confirm" @click.stop>
         <div class="modal-header">
           <h2>Delete Project</h2>
@@ -1116,7 +1064,7 @@ onMounted(() => {
     </div>
 
     <!-- Remove Collaborator Confirmation Dialog -->
-    <div v-if="isRemoveCollabConfirmOpen" class="modal-overlay" @click="closeRemoveCollaboratorConfirm">
+  <div v-if="isRemoveCollabConfirmOpen" class="modal">
       <div class="modal-content remove-collab-confirm" @click.stop>
         <div class="modal-header">
           <h2>Remove Collaborator</h2>
@@ -1143,14 +1091,707 @@ onMounted(() => {
             >
               {{ removingCollaborator ? 'Removing...' : 'Remove Collaborator' }}
             </button>
-          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<style>
-/* Component-specific styles only */
-/* The shared styles are now in the global stylesheets */
+<style scoped>
+/* Main container */
+.project-details {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Project Header */
+.project-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--color-background-soft);
+  color: var(--color-text);
+  border-radius: var(--border-radius);
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: var(--color-background-mute);
+}
+
+.back-button span:first-child {
+  font-size: 1.2rem;
+}
+
+.project-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  margin: 0;
+}
+
+/* Project Body - Three Column Layout */
+.project-body {
+  display: grid;
+  grid-template-columns: 250px 1fr 250px; /* Files | Info/Updates | Owner/Collab */
+  gap: 1.5rem;
+}
+
+/* Common Card Styling */
+.project-files > div,
+.project-info > div,
+.owner-collab-group > div {
+  background-color: var(--color-background-soft);
+  border-radius: var(--border-radius-large);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-elevation-low);
+  margin-bottom: 1.5rem; /* Add space between cards in the same column */
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.75rem;
+}
+
+.card-header .icon {
+  font-size: 1.3rem;
+}
+
+/* Left Column - Files */
+.project-files {
+  /* Styles specific to the files column container if needed */
+}
+.project-files .card-header {
+  /* Styles for the Files card header */
+}
+.project-files .loading-spinner {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+/* Assuming FilesGrid has its own internal styling */
+
+/* Middle Column - Info, Actions, Updates */
+.project-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.description-card p {
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.actions-card .actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+}
+
+.action-button {
+  padding: 0.75rem 1rem;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-align: center;
+}
+
+.action-button:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.updates-card .loading-spinner {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+
+.updates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.update-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--color-background);
+  border-radius: var(--border-radius);
+}
+
+.update-avatar {
+  flex-shrink: 0;
+}
+
+.update-avatar img,
+.update-avatar .avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-background-mute);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.update-content {
+  flex-grow: 1;
+}
+
+.update-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.update-author {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.update-date {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.update-text {
+  color: var(--color-text);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Right Column - Owner and Collaborators */
+.owner-collab-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.collaborator-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background-color: var(--color-background);
+  border-radius: var(--border-radius);
+  margin-bottom: 0.75rem; /* Space between collaborators */
+}
+
+.collaborator-avatar {
+  flex-shrink: 0;
+}
+
+.collaborator-avatar img,
+.collaborator-avatar span {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-background-mute);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.collaborator-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.collaborator-name {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.collaborator-role {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+
+.collaborators-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Modals - Basic Styling (assuming more specific modal styles exist elsewhere or in modal components) */
+.modal {
+  /* Basic positioning and backdrop */
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background-color: var(--color-background);
+  padding: 2rem;
+  border-radius: var(--border-radius-large);
+  box-shadow: var(--shadow-elevation-high);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 1rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--color-heading);
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: 0.25rem;
+  line-height: 1;
+}
+
+.close-button:hover {
+  color: var(--color-text);
+}
+
+/* Styles for Collaborator Card Management */
+.collaborators-card .card-header {
+  justify-content: space-between; /* Push button to the right */
+}
+
+.add-collab-button {
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.add-collab-button:hover {
+  background-color: var(--color-background-mute);
+  color: var(--color-text);
+}
+
+.add-collaborator-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.search-container {
+  margin-bottom: 1rem;
+}
+
+.search-container label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.search-input-wrapper {
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+.search-input:focus {
+   border-color: var(--color-primary);
+   outline: none;
+}
+
+.search-loading {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.search-results {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  background-color: var(--color-background);
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.search-result-item:hover {
+  background-color: var(--color-background-mute);
+}
+
+.search-result-item .user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.search-result-item .user-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.search-result-item .user-name {
+   font-weight: 500;
+}
+.search-result-item .user-email {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.search-result-item .add-btn {
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--border-radius);
+  background-color: var(--color-primary-soft);
+}
+
+.no-results {
+  padding: 0.75rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-top: none;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+.small-error {
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--color-danger-soft);
+  border-radius: var(--border-radius);
+}
+
+/* Adjust collaborator item for management controls */
+.manage-collab-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.collaborator-info-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-grow: 1; /* Allow info to take available space */
+  margin-right: 1rem; /* Add space before controls */
+}
+
+.collaborator-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0; /* Prevent controls from shrinking */
+}
+
+.role-select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background-color: var(--color-background-mute);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  max-width: 100px; /* Prevent select from becoming too wide */
+}
+
+.role-badge {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--border-radius);
+  color: var(--color-text);
+  font-weight: 500;
+}
+.role-badge.owner {
+   display: inline-flex;
+   align-items: center;
+   gap: 0.3em;
+   background-color: transparent; /* Remove background if only icon needed */
+   color: var(--color-warning); /* Use warning color for owner */
+   padding: 0.25rem 0; /* Adjust padding */
+   font-weight: 600;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1.1rem; /* Adjust icon size */
+  line-height: 1;
+  border-radius: var(--border-radius-small);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  color: var(--color-text-secondary); /* Default subtle color */
+}
+
+.icon-btn:hover {
+  background-color: var(--color-background-mute);
+}
+
+.icon-btn.remove-btn {
+  /* Keep default subtle color */
+}
+
+.icon-btn.remove-btn:hover {
+  color: var(--color-danger); /* Red color on hover for delete */
+  background-color: var(--color-danger-soft); /* Slight red background on hover */
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: transparent;
+}
+
+/* Adjust spinner position if needed */
+.spinner-small.role-spinner {
+  margin-left: 0; /* Reset margin if gap handles spacing */
+}
+
+/* Adjustments for Edit Modal (since collaborator section removed) */
+.edit-form {
+  /* Remove styles specific to collaborators-section if any were added before */
+}
+
+/* Spinner (re-add if not present globally) */
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Ensure user avatar styles are available if not global */
+.user-avatar.small {
+  width: 32px;
+  height: 32px;
+  font-size: 0.9rem;
+}
+.user-avatar img, 
+.user-avatar .avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover; /* Ensure images cover the area */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-background-mute);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Responsive Adjustments might be needed for the new controls */
+@media (max-width: 768px) {
+   .manage-collab-item {
+      flex-direction: column; /* Stack info and controls on small screens */
+      align-items: flex-start; /* Align items left */
+      gap: 0.5rem;
+   }
+   .collaborator-controls {
+     margin-left: calc(40px + 1rem); /* Align controls under name/role based on avatar size + gap */
+     padding-bottom: 0.5rem; /* Add spacing below controls */
+   }
+   .collaborators-card .card-header {
+     flex-wrap: wrap; /* Allow header items to wrap */
+   }
+   .add-collab-button {
+     margin-left: auto; /* Keep button pushed right */
+   }
+}
+
+/* --- UI Refinements --- */
+
+/* 1. Files Card Cleanup */
+.project-files .card-header {
+  /* Kept existing styles, ensure consistency */
+}
+
+/* Apply styles directly to FilesGrid via a class or target its container */
+.project-files ::v-deep(.files-grid) { /* If FilesGrid has a root class 'files-grid' */
+  /* Example: Add padding, adjust layout if needed */
+  padding-top: 0.5rem; /* Add some space below header */
+}
+
+/* Or style the FilesGrid component instance if it was given a class in the template */
+.project-files FilesGrid {
+  /* margin-top: 0.5rem; */ /* Alternative spacing */
+}
+
+/* Ensure FilesGrid component takes full width if needed */
+.project-files {
+  /* Potentially set display: flex; flex-direction: column; if needed */
+}
+
+/* 2. Collaborator Controls Neatening */
+.collaborator-controls {
+  gap: 0.75rem; /* Adjust gap for better spacing */
+}
+
+.role-select {
+  /* Existing styles are likely okay, ensure padding is balanced */
+  padding: 0.4rem 0.6rem;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1.1rem; /* Adjust icon size */
+  line-height: 1;
+  border-radius: var(--border-radius-small);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  color: var(--color-text-secondary); /* Default subtle color */
+}
+
+.icon-btn:hover {
+  background-color: var(--color-background-mute);
+}
+
+.icon-btn.remove-btn {
+  /* Keep default subtle color */
+}
+
+.icon-btn.remove-btn:hover {
+  color: var(--color-danger); /* Red color on hover for delete */
+  background-color: var(--color-danger-soft); /* Slight red background on hover */
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: transparent;
+}
+
+/* Remove old .remove-btn specific styles if superseded by .icon-btn */
+/* .remove-btn { ... } */
+
+/* Adjust spinner position if needed */
+.spinner-small.role-spinner {
+  margin-left: 0; /* Reset margin if gap handles spacing */
+}
+
+.role-badge.owner {
+   display: inline-flex;
+   align-items: center;
+   gap: 0.3em;
+   background-color: transparent; /* Remove background if only icon needed */
+   color: var(--color-warning); /* Use warning color for owner */
+   padding: 0.25rem 0; /* Adjust padding */
+   font-weight: 600;
+}
+
+/* 3. Action Button Coloring */
+.action-button {
+  /* Keep existing base styles */
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  text-align: center;
+  font-weight: 500;
+  display: inline-flex; /* Align icon and text */
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* Space between icon and text */
+}
+
+.action-button:hover {
+  transform: translateY(-1px);
+}
+
+.action-button.btn-edit {
+  background-color: var(--color-primary); 
+  color: var(--color-button-text, white); /* Use button text color variable or default */
+}
+.action-button.btn-edit:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.action-button.btn-update {
+  background-color: var(--color-success); 
+  color: var(--color-button-text, white); /* Use button text color variable or default */
+}
+.action-button.btn-update:hover {
+  background-color: var(--color-success-hover);
+}
+
+/* ... rest of styles ... */
 </style> 
