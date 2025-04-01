@@ -38,6 +38,12 @@ const routes = [
     path: '/showcase',
     name: 'Showcase',
     component: () => import('../views/ShowcasePage.vue')
+  },
+  {
+    path: '/debug',
+    name: 'Debug',
+    component: () => import('../views/Debug.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

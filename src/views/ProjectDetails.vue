@@ -2,11 +2,14 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
-import { useProjects } from '../composables/useProjects'
 import { useUserSearch } from '../composables/useUserSearch'
 import { useFileStorage } from '../composables/useFileStorage'
 import { supabase } from '../supabase/config'
 import FilesGrid from '../components/ui/FilesGrid.vue'
+import CollaboratorManagement from '../components/CollaboratorManagement.vue'
+import NewProjectModal from '../components/modals/NewProjectModal.vue'
+import { collaboratorService } from '../services/collaboratorService'
+import { useProjectStore } from '../stores/projectStore'
 
 const TABLES = {
   PROJECTS: 'projects',
@@ -19,14 +22,16 @@ const TABLES = {
 const route = useRoute()
 const router = useRouter()
 const { user } = useAuth()
-const { hasProjectAccess } = useProjects()
+const { currentProject, loading, error, getProject, updateProject, clearCache } = useProjectStore()
 const { searchResults, loading: userSearchLoading, error: userSearchError, searchUsers } = useUserSearch()
 const { uploadFile, downloadFile, getFileUrl, updateMissingFileUrls, error: fileError, uploading: fileUploading, progress: uploadProgress, deleteFile } = useFileStorage()
 
-const projectId = ref('')
-const project = ref(null)
-const loading = ref(true)
-const error = ref(null)
+const projectId = ref(route.params.id)
+const project = computed(() => currentProject.value)
+const projectFiles = ref([])
+const projectUpdates = ref([])
+const loadingFiles = ref(true)
+const loadingUpdates = ref(true)
 
 // Update modal state
 const isUpdateModalOpen = ref(false)
@@ -43,12 +48,15 @@ const editProjectData = ref({
   name: '',
   description: '',
   is_public: false,
+  version: '',
+  files: [],
   newCollaborators: []
 })
 const editSubmitting = ref(false)
 const editError = ref(null)
 const searchQuery = ref('')
 const showSearchResults = ref(false)
+const editSuccess = ref(null)
 
 // Delete confirmation dialog state
 const isDeleteConfirmOpen = ref(false)
@@ -60,8 +68,30 @@ const isRemoveCollabConfirmOpen = ref(false)
 const selectedCollaboratorToRemove = ref(null)
 
 // Add these variables to track loading states
-const updatingRoleFor = ref(null)
 const removingCollaborator = ref(false)
+
+// Define ensureFileUrls before it's used
+const ensureFileUrls = async () => {
+  if (!project.value || !project.value.files || project.value.files.length === 0) return
+  
+  console.log('Checking file URLs for', project.value.files.length, 'files')
+  
+  // First update in-memory file objects for immediate use
+  project.value.files = project.value.files.map(file => {
+    if (!file.url && file.file_path) {
+      file.url = getFileUrl(file.file_path)
+      console.log(`Generated temporary URL for ${file.name}:`, file.url)
+    }
+    return file
+  })
+  
+  // Then update the database records for files missing URLs
+  const filesToUpdate = project.value.files.filter(file => !file.url && file.file_path)
+  if (filesToUpdate.length > 0) {
+    console.log('Updating URLs for', filesToUpdate.length, 'files in the database')
+    await updateMissingFileUrls(filesToUpdate)
+  }
+}
 
 const openUpdateModal = () => {
   updateData.value = {
@@ -123,6 +153,9 @@ const submitUpdate = async () => {
       }
     }
     
+    // Clear the cache for this project to force a refresh
+    clearCache(projectId.value)
+    
     // Refresh project data
     await fetchProject()
     
@@ -137,163 +170,16 @@ const submitUpdate = async () => {
 }
 
 const fetchProject = async () => {
-  if (!projectId.value) return
-  
-  loading.value = true
-  error.value = null
-  
+  if (!projectId.value) {
+    error.value = 'No project ID provided'
+    return
+  }
+
   try {
-    // At start of fetchProject
-    console.log('Fetching project with ID:', projectId.value);
-
-    // First get the project and its files
-    const { data: projectData, error: projectError } = await supabase
-      .from(TABLES.PROJECTS)
-      .select(`
-        *,
-        ${TABLES.PROJECT_FILES}(*)
-      `)
-      .eq('id', projectId.value)
-      .single()
-    
-    if (projectError) throw projectError
-    
-    // Get the owner information
-    const { data: ownerData, error: ownerError } = await supabase
-      .from(TABLES.PROFILES)
-      .select('*')
-      .eq('id', projectData.owner_id)
-      .single()
-    
-    if (ownerError) console.error('Error fetching owner:', ownerError)
-
-    // Get collaborators
-    const { data: collaborators, error: collabError } = await supabase
-      .from(TABLES.PROJECT_COLLABORATORS)
-      .select('role, user_id')
-      .eq('project_id', projectId.value)
-    
-    if (collabError) console.error('Error fetching collaborators:', collabError)
-
-    // Get user profiles for collaborators
-    let userProfiles = []
-    if (collaborators && collaborators.length > 0) {
-      const userIds = collaborators.map(c => c.user_id)
-      const { data: profiles, error: profilesError } = await supabase
-        .from(TABLES.PROFILES)
-        .select('*')
-        .in('id', userIds)
-      
-      if (profilesError) {
-        console.error('Error fetching collaborator profiles:', profilesError)
-      } else {
-        userProfiles = profiles || []
-      }
-    }
-
-    // Get project updates
-    const { data: updates, error: updatesError } = await supabase
-      .from(TABLES.PROJECT_UPDATES)
-      .select('*')
-      .eq('project_id', projectId.value)
-      .order('created_at', { ascending: false })
-
-    if (updatesError) {
-      console.error('Error fetching project updates:', updatesError)
-    } else if (updates && updates.length > 0) {
-      // Get user profiles for each update
-      const userIds = [...new Set(updates.map(update => update.user_id))];
-      
-      const { data: userProfiles, error: profilesError } = await supabase
-        .from(TABLES.PROFILES)
-        .select('id, display_name, avatar_url')
-        .in('id', userIds);
-      
-      if (profilesError) {
-        console.error('Error fetching user profiles:', profilesError);
-      } else {
-        // Combine updates with user profiles
-        updates.forEach(update => {
-          update.user = userProfiles.find(profile => profile.id === update.user_id) || null;
-        });
-      }
-      
-      projectData.updates = updates;
-    } else {
-      projectData.updates = [];
-    }
-
-    // After fetching project data
-    console.log('Project data:', projectData);
-
-    // After fetching owner data
-    console.log('Owner data:', ownerData);
-
-    // After fetching collaborators
-    console.log('Collaborators:', collaborators);
-    console.log('User profiles:', userProfiles);
-
-    // Combine all the data
-    project.value = {
-      ...projectData,
-      owner: ownerData || null,
-      collaborators: (collaborators || []).map(collab => ({
-        ...collab,
-        user: userProfiles.find(p => p.id === collab.user_id) || null
-      })),
-      files: projectData.project_files || [],
-      updates: projectData.updates || []
-    }
-    
-    // Check if user has access to this project
-    if (user.value) {
-      const hasAccess = project.value.owner_id === user.value.id || 
-                        project.value.collaborators.some(c => c.user_id === user.value.id)
-      if (!hasAccess && !project.value.is_public) {
-        error.value = "You don't have access to this project"
-        router.push('/projects')
-        return
-      }
-    } else if (!project.value.is_public) {
-      router.push('/projects')
-      return
-    }
-
-    // Update the ensureFileUrls function to persist URL updates to the database
-    const ensureFileUrls = async () => {
-      if (!project.value || !project.value.files || project.value.files.length === 0) return
-      
-      console.log('Checking file URLs for', project.value.files.length, 'files')
-      
-      // First update in-memory file objects for immediate use
-      project.value.files = project.value.files.map(file => {
-        if (!file.url && file.file_path) {
-          file.url = getFileUrl(file.file_path)
-          console.log(`Generated temporary URL for ${file.name}:`, file.url)
-        }
-        return file
-      })
-      
-      // Then update the database records for files missing URLs
-      const filesToUpdate = project.value.files.filter(file => !file.url && file.file_path)
-      if (filesToUpdate.length > 0) {
-        console.log('Updating URLs for', filesToUpdate.length, 'files in the database')
-        await updateMissingFileUrls(filesToUpdate)
-      }
-    }
-
-    // Modify the fetchProject function to await the ensureFileUrls call
-    await ensureFileUrls();
-
-    console.log('Combined project data:', project.value);
-    console.log('Project files:', project.value.files);
-    console.log('Project owner:', project.value.owner);
-    console.log('Project collaborators:', project.value.collaborators);
+    await getProject(projectId.value)
+    await ensureFileUrls()
   } catch (err) {
-    console.error('Error fetching project details:', err)
-    error.value = err.message
-  } finally {
-    loading.value = false
+    console.error('Error fetching project:', err)
   }
 }
 
@@ -313,10 +199,16 @@ const isOwner = computed(() => {
 
 // Check if the current user is a collaborator
 const userRole = computed(() => {
-  if (!user.value || !project.value || !project.value.collaborators) return null
+  if (!user.value || !project.value) return null
   
-  const collaboration = project.value.collaborators.find(
-    c => c.user && c.user.id === user.value.id
+  // If user is owner, return 'owner'
+  if (project.value.owner_id === user.value.id) {
+    return 'owner'
+  }
+  
+  // Look for user in collaborators list
+  const collaboration = project.value.collaborators?.find(
+    c => c.user_id === user.value.id
   )
   
   return collaboration ? collaboration.role : null
@@ -370,17 +262,14 @@ const removeNewCollaborator = (index) => {
   editProjectData.value.newCollaborators.splice(index, 1)
 }
 
-// Function to change a new collaborator's role
-const changeNewCollaboratorRole = (index, role) => {
-  editProjectData.value.newCollaborators[index].role = role
-}
-
 // Open edit modal function with updated initialization
 const openEditModal = () => {
   editProjectData.value = {
     name: project.value.name || '',
     description: project.value.description || '',
     is_public: project.value.is_public || false,
+    version: project.value.version || '0.1.0',
+    files: [],
     newCollaborators: []
   }
   searchQuery.value = ''
@@ -392,64 +281,6 @@ const openEditModal = () => {
 // Close edit modal function
 const closeEditModal = () => {
   isEditModalOpen.value = false
-}
-
-// Update submit edit function to handle collaborator invites
-const submitEdit = async () => {
-  if (!editProjectData.value.name) {
-    editError.value = 'Project name is required'
-    return
-  }
-  
-  editSubmitting.value = true
-  editError.value = null
-  
-  try {
-    // Update the project
-    const { data, error } = await supabase
-      .from(TABLES.PROJECTS)
-      .update({
-        name: editProjectData.value.name,
-        description: editProjectData.value.description,
-        is_public: editProjectData.value.is_public,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', projectId.value)
-      .select()
-      .single()
-    
-    if (error) throw error
-    
-    // Add new collaborators if any
-    if (editProjectData.value.newCollaborators.length > 0) {
-      const collaboratorRecords = editProjectData.value.newCollaborators.map(c => ({
-        project_id: projectId.value,
-        user_id: c.id,
-        role: c.role,
-        created_at: new Date().toISOString()
-      }))
-      
-      const { error: collabError } = await supabase
-        .from(TABLES.PROJECT_COLLABORATORS)
-        .insert(collaboratorRecords)
-      
-      if (collabError) {
-        console.error('Error adding collaborators:', collabError)
-        throw new Error('Project updated, but failed to add collaborators')
-      }
-    }
-    
-    // Refresh project data
-    await fetchProject()
-    
-    // Close modal
-    closeEditModal()
-  } catch (err) {
-    console.error('Error updating project:', err)
-    editError.value = err.message
-  } finally {
-    editSubmitting.value = false
-  }
 }
 
 // Open delete confirmation function
@@ -507,35 +338,16 @@ const deleteProject = async () => {
     
     if (projectDeleteError) throw projectDeleteError
     
-    // 5. Navigate back to projects page
+    // Clear the cache for this project
+    clearCache(projectId.value)
+    
+    // Navigate back to projects page
     router.push('/projects')
   } catch (err) {
     console.error('Error deleting project:', err)
     deleteError.value = err.message
   } finally {
     deleteSubmitting.value = false
-  }
-}
-
-// Update the updateCollaboratorRole function to include loading state
-const updateCollaboratorRole = async (collaboratorId, newRole) => {
-  updatingRoleFor.value = collaboratorId
-  try {
-    const { error } = await supabase
-      .from(TABLES.PROJECT_COLLABORATORS)
-      .update({ role: newRole })
-      .eq('project_id', projectId.value)
-      .eq('user_id', collaboratorId)
-    
-    if (error) throw error
-    
-    // Refresh project data to show updated roles
-    await fetchProject()
-  } catch (err) {
-    console.error('Error updating collaborator role:', err)
-    editError.value = 'Failed to update collaborator role'
-  } finally {
-    updatingRoleFor.value = null
   }
 }
 
@@ -550,28 +362,43 @@ const closeRemoveCollaboratorConfirm = () => {
   selectedCollaboratorToRemove.value = null
 }
 
-// Update removeCollaborator to include loading state
+// Update removeCollaborator to include loading state and use the composable
 const removeCollaborator = async () => {
   if (!selectedCollaboratorToRemove.value) return
   
   removingCollaborator.value = true
   try {
-    const { error } = await supabase
-      .from(TABLES.PROJECT_COLLABORATORS)
-      .delete()
-      .eq('project_id', projectId.value)
-      .eq('user_id', selectedCollaboratorToRemove.value.user_id)
+    console.log('Removing collaborator object:', JSON.stringify(selectedCollaboratorToRemove.value));
     
-    if (error) throw error
+    // Use user_id directly from the collaborator object
+    const userId = selectedCollaboratorToRemove.value.user_id;
+    
+    if (!userId) {
+      console.error('No user_id found in collaborator object:', selectedCollaboratorToRemove.value);
+      throw new Error('Failed to identify user ID for removal');
+    }
+    
+    console.log('Removing user ID:', userId, 'from project:', projectId.value);
+    
+    // Use the collaboratorService function instead of direct Supabase call
+    const success = await collaboratorService.removeCollaborator(projectId.value, userId);
+    
+    console.log('Remove collaborator result:', success);
+    
+    if (!success) {
+      console.error('Failed to remove collaborator - returned false');
+      throw new Error('Failed to remove collaborator');
+    }
     
     // Refresh project data
     await fetchProject()
     closeRemoveCollaboratorConfirm()
   } catch (err) {
-    console.error('Error removing collaborator:', err)
-    editError.value = 'Failed to remove collaborator'
+    console.error('Error removing collaborator:', err);
+    console.error('Error details:', err.message);
+    editError.value = 'Failed to remove collaborator: ' + err.message;
   } finally {
-    removingCollaborator.value = false
+    removingCollaborator.value = false;
   }
 }
 
@@ -646,7 +473,7 @@ const getFileIcon = (fileName) => {
   }
 }
 
-// Function to handle file deletion 
+// Function to handle file deletion
 const handleFileDeleted = async (file) => {
   try {
     const success = await deleteFile(file.file_path, file.id);
@@ -654,6 +481,8 @@ const handleFileDeleted = async (file) => {
     if (success) {
       // Update the local project files list when a file is deleted
       project.value.files = project.value.files.filter(f => f.id !== file.id);
+      // Also update projectFiles array
+      projectFiles.value = projectFiles.value.filter(f => f.id !== file.id);
     } else {
       error.value = 'Failed to delete file. Please try again.';
     }
@@ -663,190 +492,358 @@ const handleFileDeleted = async (file) => {
   }
 }
 
-onMounted(() => {
-  projectId.value = route.params.id
-  if (projectId.value) {
+const handleCollaboratorRemoved = async (userId) => {
+  try {
+    // Only refresh project data after successful collaborator removal
+    const collaborator = project.value.collaborators.find(c => c.user_id === userId)
+    if (collaborator) {
+      project.value.collaborators = project.value.collaborators.filter(c => c.user_id !== userId)
+    }
+  } catch (error) {
+    console.error('Error handling collaborator removal:', error)
+    editError.value = 'Failed to handle collaborator removal'
+  }
+}
+
+const handleRoleUpdate = async ({ userId, newRole }) => {
+  try {
+    // Update the role in the local state
+    const collaborator = project.value.collaborators.find(c => c.user_id === userId)
+    if (collaborator) {
+      collaborator.role = newRole
+    }
+
+    // Show success message
+    editSuccess.value = 'Role updated successfully'
+    setTimeout(() => {
+      editSuccess.value = null
+    }, 3000)
+  } catch (err) {
+    console.error('Error handling role update:', err)
+    editError.value = 'Failed to update role'
+  }
+}
+
+// Function to handle saving project updates from the modal
+const handleProjectUpdate = async (updatedData) => {
+  editSubmitting.value = true
+  editError.value = null
+  editSuccess.value = null
+
+  try {
+    // 1. Update basic project details
+    await updateProject(projectId.value, {
+      name: updatedData.name,
+      description: updatedData.description,
+      is_public: updatedData.is_public
+    })
+
+    // 2. Add new collaborators
+    if (updatedData.newCollaborators && updatedData.newCollaborators.length > 0) {
+      for (const collaborator of updatedData.newCollaborators) {
+        await collaboratorService.addCollaborator(projectId.value, collaborator.id, collaborator.role)
+      }
+    }
+
+    // 3. Refresh project data and show success
+    await fetchProject() // Fetch updated project data including new collaborators
+    editSuccess.value = 'Project updated successfully!'
+    closeEditModal()
+
+    // Clear success message after a delay
+    setTimeout(() => {
+      editSuccess.value = null
+    }, 3000)
+
+  } catch (err) {
+    console.error('Error updating project:', err)
+    editError.value = `Failed to update project: ${err.message}`
+  } finally {
+    editSubmitting.value = false
+  }
+}
+
+// Watch for route changes to handle navigation
+watch(() => route.params.id, (newId) => {
+  if (newId && newId !== projectId.value) {
+    projectId.value = newId
     fetchProject()
-  } else {
-    router.push('/projects')
+  }
+})
+
+const loadUpdates = async () => {
+  loadingUpdates.value = true
+  try {
+    // First, get the updates
+    const { data: updatesData, error: updatesError } = await supabase
+      .from(TABLES.PROJECT_UPDATES)
+      .select('*')
+      .eq('project_id', projectId.value)
+      .order('created_at', { ascending: false })
+
+    if (updatesError) throw updatesError
+
+    // Get user details for each update
+    const updates = updatesData || []
+    const userIds = [...new Set(updates.map(update => update.user_id).filter(Boolean))]
+    
+    if (userIds.length > 0) {
+      const { data: usersData, error: usersError } = await supabase
+        .from(TABLES.PROFILES)
+        .select('id, display_name, avatar_url')
+        .in('id', userIds)
+
+      if (usersError) throw usersError
+
+      // Map users to updates
+      projectUpdates.value = updates.map(update => {
+        const user = usersData?.find(u => u.id === update.user_id)
+        return {
+          ...update,
+          user
+        }
+      })
+    } else {
+      projectUpdates.value = updates
+    }
+  } catch (error) {
+    console.error('Error loading updates:', error)
+  } finally {
+    loadingUpdates.value = false
+  }
+}
+
+// Function to load project files separately
+const loadFiles = async () => {
+  loadingFiles.value = true
+  try {
+    const { data, error: filesError } = await supabase
+      .from(TABLES.PROJECT_FILES)
+      .select(`
+        *,
+        update:update_id (
+          id,
+          description,
+          created_at
+        )
+      `)
+      .eq('project_id', projectId.value)
+      .order('created_at', { ascending: false })
+
+    if (filesError) throw filesError
+    projectFiles.value = data || []
+    
+    // Ensure files have URLs
+    for (const file of projectFiles.value) {
+      if (!file.url && file.file_path) {
+        file.url = getFileUrl(file.file_path)
+      }
+    }
+  } catch (error) {
+    console.error('Error loading files:', error)
+  } finally {
+    loadingFiles.value = false
+  }
+}
+
+// Function to load collaborators separately
+const loadCollaborators = async () => {
+  try {
+    const { data, error: collabError } = await supabase
+      .from(TABLES.PROJECT_COLLABORATORS)
+      .select(`
+        *,
+        user:user_id (
+          id,
+          display_name,
+          avatar_url,
+          email
+        )
+      `)
+      .eq('project_id', projectId.value)
+      
+    if (collabError) throw collabError
+    
+    if (project.value) {
+      project.value.collaborators = data || []
+    }
+  } catch (error) {
+    console.error('Error loading collaborators:', error)
+  }
+}
+
+onMounted(async () => {
+  try {
+    await fetchProject()
+    await Promise.all([
+      loadCollaborators(),
+      loadFiles(),
+      loadUpdates()
+    ])
+  } catch (error) {
+    console.error('Error loading project details:', error)
   }
 })
 </script>
 
 <template>
-  <div class="project-details container">
-    <div v-if="loading" class="loading">
-      Loading project details...
+  <div class="project-details">
+    <!-- Project Header -->
+    <div class="project-header">
+      <router-link :to="{ name: 'projects' }" class="back-button">
+        <span>←</span>
+        <span>Back to Projects</span>
+      </router-link>
+      <h1 class="project-title">{{ project?.name }}</h1>
     </div>
-    <div v-else-if="error" class="error-message">
-      {{ error }}
-    </div>
-    <div v-else-if="project" class="project-content">
-      <div class="project-header">
-        <div class="back-button" @click="router.go(-1)">
-          &larr; Back
+
+    <!-- Project Body -->
+    <div class="project-body">
+      <!-- Left Column - Files -->
+      <div class="project-files">
+        <div class="card-header">
+          <span class="icon">📁</span>
+          <span>Files</span>
         </div>
-        <h1>{{ project.name || project.title || 'Untitled Project' }}</h1>
-        <div class="project-meta">
-          <span class="date">Created {{ formatDate(project.created_at) }}</span>
-          <span class="version">v{{ project.version || '1.0.0' }}</span>
+        <div v-if="loadingFiles" class="loading-spinner">
+          Loading files...
+        </div>
+        <FilesGrid
+          v-else
+          :files="projectFiles"
+          :loading="loadingFiles"
+          @delete="handleFileDeleted"
+          @download="handleFileDownload"
+        />
+      </div>
+
+      <!-- Middle Column - Description and Updates -->
+      <div class="project-info">
+        <!-- Description Card -->
+        <div class="description-card">
+          <div class="card-header">
+            <span class="icon">📝</span>
+            <span>Description</span>
+          </div>
+          <p v-if="project?.description">{{ project.description }}</p>
+          <p v-else class="text-secondary">No description provided</p>
+        </div>
+
+        <!-- Actions Card -->
+        <div class="actions-card">
+          <div class="card-header">
+            <span class="icon">⚡</span>
+            <span>Actions</span>
+          </div>
+          <div class="actions-grid">
+            <button @click="openEditModal" class="action-button">
+              Edit Project
+            </button>
+            <button @click="openUpdateModal" class="action-button">
+              Add Update
+            </button>
+          </div>
+        </div>
+
+        <!-- Updates Card -->
+        <div class="updates-card">
+          <div class="card-header">
+            <span class="icon">🔄</span>
+            <span>Updates</span>
+          </div>
+          <div v-if="loadingUpdates" class="loading-spinner">
+            Loading updates...
+          </div>
+          <div v-else-if="projectUpdates && projectUpdates.length > 0" class="updates-list">
+            <div v-for="update in projectUpdates" :key="update.id" class="update-item">
+              <div class="update-avatar">
+                <img 
+                  v-if="update.user?.avatar_url" 
+                  :src="update.user.avatar_url" 
+                  :alt="update.user.display_name"
+                />
+                <span v-else class="avatar-placeholder">
+                  {{ update.user?.display_name?.[0] || '?' }}
+                </span>
+              </div>
+              <div class="update-content">
+                <div class="update-header">
+                  <span class="update-author">{{ update.user?.display_name }}</span>
+                  <span class="update-date">{{ formatDate(update.created_at) }}</span>
+                </div>
+                <p class="update-text">{{ update.description }}</p>
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-secondary">No updates yet</p>
         </div>
       </div>
 
-      <div class="project-body">
-        <div class="project-info">
-          <div class="info-card">
-            <h3 data-icon="description">Description</h3>
-            <p>{{ project.description || 'No description provided' }}</p>
+      <!-- Right Column - Owner and Collaborators -->
+      <div class="owner-collab-group">
+        <!-- Owner Card -->
+        <div class="owner-card">
+          <div class="card-header">
+            <span class="icon">👑</span>
+            <span>Owner</span>
           </div>
-
-          <!-- Group Project Owner and Collaborators together -->
-          <div class="owner-collab-group">
-            <div class="info-card owner-card">
-              <h3 data-icon="owner">Project Owner</h3>
-              <div class="owner-info">
-                <div class="user-avatar">
-                  <img 
-                    v-if="project.owner?.avatar_url" 
-                    :src="project.owner.avatar_url" 
-                    :alt="project.owner.display_name"
-                    referrerpolicy="no-referrer"
-                  >
-                  <div v-else class="avatar-placeholder">
-                    {{ project.owner?.display_name?.[0]?.toUpperCase() || '?' }}
-                  </div>
-                </div>
-                <span>{{ project.owner?.display_name || 'Unknown' }}</span>
-              </div>
+          <div v-if="project?.owner" class="collaborator-item">
+            <div class="collaborator-avatar">
+              <img v-if="project.owner.avatar_url" :src="project.owner.avatar_url" :alt="project.owner.display_name" />
+              <span v-else>{{ project.owner.display_name?.[0] }}</span>
             </div>
-
-            <div v-if="project.collaborators && project.collaborators.length > 0" class="info-card collab-card">
-              <h3 data-icon="collaborators">Collaborators</h3>
-              <div class="collaborators-grid">
-                <div v-for="collab in project.collaborators" :key="collab.user?.id || collab.id" class="collaborator-item">
-                  <div class="user-avatar small">
-                    <img 
-                      v-if="collab.user?.avatar_url" 
-                      :src="collab.user.avatar_url" 
-                      :alt="collab.user.display_name"
-                      referrerpolicy="no-referrer"
-                    >
-                    <div v-else class="avatar-placeholder">
-                      {{ collab.user?.display_name?.[0]?.toUpperCase() || '?' }}
-                    </div>
-                  </div>
-                  <div class="user-details">
-                    <span class="user-name">{{ collab.user?.display_name || 'Unknown User' }}</span>
-                    <span class="role-icon" :class="collab.role" :title="collab.role"></span>
-                  </div>
-                </div>
-              </div>
+            <div class="collaborator-info">
+              <span class="collaborator-name">{{ project.owner.display_name }}</span>
+              <span class="collaborator-role">Owner</span>
             </div>
           </div>
         </div>
 
-        <div class="project-files">
-          <div class="info-card files-card">
-            <h3 data-icon="files">Files</h3>
-            <FilesGrid 
-              :files="project.files" 
-              layout="standard" 
-              viewMode="grid"
-              :allowDelete="isOwner || userRole === 'admin'"
-              emptyMessage="No files uploaded yet"
-              @delete="handleFileDeleted"
-              @download="handleFileDownload"
-              class="files-grid-improved files-grid-project"
-            />
+        <!-- Collaborators Card -->
+        <div class="collaborators-card">
+          <div class="card-header">
+            <span class="icon">👥</span>
+            <span>Collaborators</span>
           </div>
-          
-          <div v-if="isOwner || userRole === 'admin' || userRole === 'editor'" class="info-card">
-            <h3 data-icon="settings">Project Actions</h3>
-            <div class="project-actions">
-              <button class="btn btn-success" @click="openUpdateModal">
-                <span class="icon">+</span> Add Progress / Update Project
-              </button>
-              <button v-if="isOwner || userRole === 'admin'" class="btn btn-primary" @click="openEditModal">
-                Edit Project
-              </button>
-              <button v-if="isOwner || userRole === 'admin'" class="btn btn-danger" @click="openDeleteConfirm">
-                Delete Project
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="project-updates">
-        <h3 data-icon="updates">Project Updates</h3>
-        
-        <div v-if="project.updates && project.updates.length > 0" class="updates-list">
-          <div v-for="update in project.updates" :key="update.id" class="update-item">
-            <div class="update-header">
-              <div class="user-info">
-                <div class="user-avatar">
-                  <img 
-                    v-if="update.user?.avatar_url" 
-                    :src="update.user.avatar_url" 
-                    :alt="update.user.display_name"
-                    referrerpolicy="no-referrer"
-                  >
-                  <div v-else class="avatar-placeholder">
-                    {{ update.user?.display_name?.[0]?.toUpperCase() || '?' }}
-                  </div>
-                </div>
-                <div>
-                  <div class="update-author">{{ update.user?.display_name || 'Unknown User' }}</div>
-                  <div class="update-date">{{ formatDate(update.created_at) }}</div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="update-content">
-              <p class="update-text">{{ update.description }}</p>
-            </div>
-            
-            <div v-if="project.files" class="update-files">
-              <FilesGrid 
-                :files="project.files.filter(f => f.update_id === update.id)" 
-                layout="compact" 
-                viewMode="grid"
-                :allowDelete="isOwner || userRole === 'admin'"
-                emptyMessage="No files attached to this update"
-                @delete="handleFileDeleted"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div v-else class="empty-updates empty-state">
-          <p>No updates yet. Click "Add Progress / Update Project" to add the first update.</p>
+          <CollaboratorManagement
+            :project-id="projectId"
+            :collaborators="project?.collaborators || []"
+            :is-owner="isOwner"
+            @role-updated="handleRoleUpdate"
+            @collaborator-removed="handleCollaboratorRemoved"
+          />
         </div>
       </div>
     </div>
 
-    <!-- Update Modal -->
+    <!-- Modals -->
+    <NewProjectModal
+      :isOpen="isEditModalOpen"
+      @close="closeEditModal"
+      @submit="handleProjectUpdate"
+    />
+
     <div v-if="isUpdateModalOpen" class="modal-overlay" @click="closeUpdateModal">
-      <div class="modal-content" @click.stop>
+      <div class="modal-content card" @click.stop>
         <div class="modal-header">
-          <h2>Add Progress / Update Project</h2>
+          <h2>Add Project Update</h2>
           <button class="close-button" @click="closeUpdateModal">×</button>
         </div>
-        
+
         <form @submit.prevent="submitUpdate" class="update-form">
           <div class="form-group">
-            <label for="update-description">What changes have you made?</label>
+            <label for="update-description">Update Description</label>
             <textarea
               id="update-description"
               v-model="updateData.description"
               required
-              placeholder="Describe the progress or updates you've made to the project..."
+              placeholder="Describe your update"
               rows="4"
             ></textarea>
           </div>
-          
+
           <div class="form-group">
-            <label for="update-files">Upload New Files</label>
+            <label for="update-files">Attach Files</label>
             <div class="file-upload-container">
               <input
                 id="update-files"
@@ -854,7 +851,6 @@ onMounted(() => {
                 @change="handleFileChange"
                 multiple
                 class="file-input"
-                :disabled="submitting"
               >
               <div class="file-upload-box">
                 <span class="upload-icon">📎</span>
@@ -867,290 +863,84 @@ onMounted(() => {
                 <small>{{ (file.size / 1024).toFixed(1) }} KB</small>
               </div>
             </div>
-            <div v-if="submitting && updateData.files.length" class="upload-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" :style="{ width: `${uploadProgress}%` }"></div>
-              </div>
-              <span class="progress-text">{{ uploadProgress }}% uploaded</span>
-            </div>
           </div>
-          
-          <div v-if="updateError" class="error-message">
-            {{ updateError }}
-          </div>
-          
-          <div class="form-actions">
-            <button type="button" class="btn btn-secondary" @click="closeUpdateModal">Cancel</button>
-            <button type="submit" class="btn btn-success" :disabled="submitting">
-              {{ submitting ? 'Saving...' : 'Save Update' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
 
-    <!-- Edit Project Modal -->
-    <div v-if="isEditModalOpen" class="modal-overlay" @click="closeEditModal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h2>Edit Project</h2>
-          <button class="close-button" @click="closeEditModal">×</button>
-        </div>
-        
-        <form @submit.prevent="submitEdit" class="edit-form">
-          <div class="form-group">
-            <label for="edit-name">Project Name</label>
-            <input
-              id="edit-name"
-              v-model="editProjectData.name"
-              type="text"
-              required
-              placeholder="Enter project name"
+          <div v-if="updateError" class="error-message">{{ updateError }}</div>
+
+          <div class="form-actions">
+            <button 
+              type="button" 
+              class="secondary-button" 
+              @click="closeUpdateModal"
             >
-          </div>
-          
-          <div class="form-group">
-            <label for="edit-description">Description</label>
-            <textarea
-              id="edit-description"
-              v-model="editProjectData.description"
-              placeholder="Describe your project"
-              rows="4"
-            ></textarea>
-          </div>
-          
-          <div class="form-group checkbox-group">
-            <label class="checkbox-label">
-              <input
-                type="checkbox"
-                v-model="editProjectData.is_public"
-              >
-              <span>Make this project public</span>
-            </label>
-            <small class="checkbox-help">Public projects are visible to everyone</small>
-          </div>
-          
-          <!-- Update the collaborator section in the Edit Project modal -->
-          <div class="form-group collaborators-section">
-            <h3>Invite Collaborators</h3>
-            
-            <!-- Existing collaborators -->
-            <div v-if="project.collaborators && project.collaborators.length > 0" class="current-collaborators">
-              <h4>Current Collaborators</h4>
-              <div class="collaborator-list">
-                <div v-for="collab in project.collaborators" :key="collab.user?.id" class="collab-item">
-                  <div class="collab-user">
-                    <div class="user-avatar small">
-                      <img 
-                        v-if="collab.user?.avatar_url" 
-                        :src="collab.user.avatar_url" 
-                        :alt="collab.user.display_name"
-                        referrerpolicy="no-referrer"
-                      >
-                      <div v-else class="avatar-placeholder">
-                        {{ collab.user?.display_name?.[0]?.toUpperCase() || '?' }}
-                      </div>
-                    </div>
-                    <span class="collab-name">{{ collab.user?.display_name || 'Unknown' }}</span>
-                  </div>
-                  <div class="collab-actions">
-                    <select 
-                      v-if="collab.user_id !== project.owner_id" 
-                      v-model="collab.role" 
-                      class="role-select"
-                      @change="updateCollaboratorRole(collab.user_id, collab.role)"
-                      :disabled="updatingRoleFor === collab.user_id"
-                    >
-                      <option value="viewer">Viewer</option>
-                      <option value="editor">Editor</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    <span v-else class="role-badge owner">Owner</span>
-                    <div v-if="updatingRoleFor === collab.user_id" class="spinner-small role-spinner"></div>
-                    <button 
-                      v-if="collab.user_id !== project.owner_id"
-                      type="button" 
-                      class="remove-btn" 
-                      @click="openRemoveCollaboratorConfirm(collab)"
-                      title="Remove collaborator"
-                    >×</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Search for users -->
-            <div class="search-container">
-              <label for="user-search">Search users to invite</label>
-              <div class="search-input-wrapper">
-                <input
-                  id="user-search"
-                  v-model="searchQuery"
-                  type="text"
-                  placeholder="Search by name or email"
-                  class="search-input"
-                >
-                <div v-if="userSearchLoading" class="search-loading">
-                  <div class="spinner-small"></div>
-                </div>
-              </div>
-              
-              <!-- Search results -->
-              <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
-                <div 
-                  v-for="result in searchResults" 
-                  :key="result.id" 
-                  class="search-result-item"
-                  @click="addCollaborator(result)"
-                >
-                  <div class="user-info">
-                    <div class="user-avatar small">
-                      <img 
-                        v-if="result.avatar_url" 
-                        :src="result.avatar_url" 
-                        :alt="result.display_name"
-                        referrerpolicy="no-referrer"
-                      >
-                      <div v-else class="avatar-placeholder">
-                        {{ result.display_name?.[0]?.toUpperCase() || '?' }}
-                      </div>
-                    </div>
-                    <div class="user-details">
-                      <div class="user-name">{{ result.display_name }}</div>
-                      <div class="user-email">{{ result.email }}</div>
-                    </div>
-                  </div>
-                  <div class="add-btn">+ Add</div>
-                </div>
-              </div>
-              
-              <div v-else-if="showSearchResults && searchResults.length === 0" class="no-results">
-                No users found with that name or email
-              </div>
-            </div>
-            
-            <!-- New collaborators to be added -->
-            <div v-if="editProjectData.newCollaborators.length > 0" class="new-collaborators">
-              <h4>Users to be added</h4>
-              <div class="collaborator-list">
-                <div v-for="(collab, index) in editProjectData.newCollaborators" :key="collab.id" class="collab-item">
-                  <div class="collab-user">
-                    <div class="user-avatar small">
-                      <img 
-                        v-if="collab.avatar_url" 
-                        :src="collab.avatar_url" 
-                        :alt="collab.display_name"
-                        referrerpolicy="no-referrer"
-                      >
-                      <div v-else class="avatar-placeholder">
-                        {{ collab.display_name?.[0]?.toUpperCase() || '?' }}
-                      </div>
-                    </div>
-                    <span class="collab-name">{{ collab.display_name }}</span>
-                  </div>
-                  <div class="collab-actions">
-                    <select v-model="collab.role" class="role-select">
-                      <option value="viewer">Viewer</option>
-                      <option value="editor">Editor</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    <button 
-                      type="button" 
-                      class="remove-btn" 
-                      @click="removeNewCollaborator(index)"
-                      title="Remove"
-                    >×</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div v-if="editError" class="error-message">
-            {{ editError }}
-          </div>
-          
-          <div class="form-actions">
-            <button type="button" class="btn btn-secondary" @click="closeEditModal">Cancel</button>
-            <button type="submit" class="btn btn-primary" :disabled="editSubmitting">
-              {{ editSubmitting ? 'Saving...' : 'Save Changes' }}
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              class="primary-button" 
+              :disabled="submitting"
+            >
+              {{ submitting ? 'Submitting...' : 'Add Update' }}
             </button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- Delete Confirmation Dialog -->
     <div v-if="isDeleteConfirmOpen" class="modal-overlay" @click="closeDeleteConfirm">
-      <div class="modal-content delete-confirm" @click.stop>
+      <div class="modal-content card confirm-dialog" @click.stop>
         <div class="modal-header">
           <h2>Delete Project</h2>
           <button class="close-button" @click="closeDeleteConfirm">×</button>
         </div>
-        
-        <div class="confirm-content">
-          <p class="confirm-message">
-            Are you sure you want to delete this project? This action cannot be undone.
-          </p>
-          <p class="confirm-details">
-            This will permanently delete all project files, updates, and remove all collaborators.
-          </p>
-          
-          <div v-if="deleteError" class="error-message">
-            {{ deleteError }}
-          </div>
-          
-          <div class="form-actions">
-            <button type="button" class="btn btn-secondary" @click="closeDeleteConfirm">Cancel</button>
-            <button 
-              type="button" 
-              class="btn btn-danger confirm-delete-btn" 
-              :disabled="deleteSubmitting"
-              @click="deleteProject"
-            >
-              {{ deleteSubmitting ? 'Deleting...' : 'Delete Project' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Remove Collaborator Confirmation Dialog -->
-    <div v-if="isRemoveCollabConfirmOpen" class="modal-overlay" @click="closeRemoveCollaboratorConfirm">
-      <div class="modal-content remove-collab-confirm" @click.stop>
-        <div class="modal-header">
-          <h2>Remove Collaborator</h2>
-          <button class="close-button" @click="closeRemoveCollaboratorConfirm">×</button>
+        <div class="confirm-message">
+          <p>Are you sure you want to delete this project?</p>
+          <p class="warning">This action cannot be undone. All project data including files and updates will be permanently deleted.</p>
         </div>
-        
-        <div class="confirm-content">
-          <p class="confirm-message">
-            Are you sure you want to remove 
-            <strong>{{ selectedCollaboratorToRemove?.user?.display_name || 'this collaborator' }}</strong> 
-            from the project?
-          </p>
-          <p class="confirm-details">
-            They will lose access to this project and will need to be invited again to regain access.
-          </p>
-          
-          <div class="form-actions">
-            <button type="button" class="btn btn-secondary" @click="closeRemoveCollaboratorConfirm">Cancel</button>
-            <button 
-              type="button" 
-              class="btn btn-danger" 
-              @click="removeCollaborator"
-              :disabled="removingCollaborator"
-            >
-              {{ removingCollaborator ? 'Removing...' : 'Remove Collaborator' }}
-            </button>
-          </div>
+
+        <div v-if="deleteError" class="error-message">{{ deleteError }}</div>
+
+        <div class="form-actions">
+          <button 
+            type="button" 
+            class="secondary-button" 
+            @click="closeDeleteConfirm"
+            :disabled="deleteSubmitting"
+          >
+            Cancel
+          </button>
+          <button 
+            type="button" 
+            class="danger-button" 
+            @click="deleteProject"
+            :disabled="deleteSubmitting"
+          >
+            {{ deleteSubmitting ? 'Deleting...' : 'Delete Project' }}
+          </button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<style>
-/* Component-specific styles only */
-/* The shared styles are now in the global stylesheets */
+<style scoped>
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--avatar-bg);
+  color: var(--text-primary);
+  font-weight: 600;
+}
 </style> 

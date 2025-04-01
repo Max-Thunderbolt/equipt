@@ -1,128 +1,278 @@
 /* Layout Styles */
 .project-details {
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 2rem;
 }
 
+/* Project Header */
 .project-header {
-  margin-bottom: 1.5rem;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  position: relative;
 }
 
 .back-button {
-  display: inline-flex;
+  position: absolute;
+  left: 0;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0;
-  margin-bottom: 0.75rem;
-  color: var(--accent-blue);
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 1rem;
+  color: var(--text-secondary);
+  text-decoration: none;
 }
 
-.back-button:hover {
-  color: var(--primary);
-  text-decoration: underline;
-}
-
-h1 {
-  margin-bottom: 0.5rem;
-  color: var(--text-primary);
-  font-size: 2rem;
+.project-title {
+  font-size: 1.75rem;
   font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
 }
 
 /* Project Body Layout */
 .project-body {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: 250px minmax(400px, 1fr) 250px;
+  gap: 2rem;
 }
 
-@media (min-width: 768px) {
-  .project-body {
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-  }
+/* Card Base Styles */
+.card-base {
+  background: var(--surface-color);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
 }
 
-.project-updates {
-  margin-bottom: 1.5rem;
+/* Left Column - Files */
+.project-files {
+  position: sticky;
+  top: 2rem;
 }
 
-.project-updates h3 {
-  margin-bottom: 1rem;
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.75rem;
+}
+
+.file-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background: var(--card-hover-bg);
+  transform: translateY(-2px);
+}
+
+.file-icon {
   font-size: 1.5rem;
-  color: var(--text-primary);
-  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.file-name {
+  font-size: 0.85rem;
+  text-align: center;
+  word-break: break-word;
+}
+
+/* Description Section */
+.description-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.card-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.project-updates h3::before {
-  content: "🔄";
-  font-size: 1.2rem;
+.card-header .icon {
+  color: var(--text-secondary);
 }
 
-/* Update header */
-.update-header {
+/* Updates Section */
+.updates-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+/* Right Column - Owner and Collaborators */
+.owner-collab-group {
+  position: sticky;
+  top: 2rem;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Owner Card */
+.owner-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.25rem;
+  min-height: 100px;
+}
+
+.collaborator-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--card-hover-bg);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  height: 64px;
+}
+
+.collaborator-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--avatar-bg);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.collaborator-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.collaborator-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.collaborator-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.collaborator-role {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.collaborator-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.role-select {
+  padding: 0.35rem 0.75rem;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  min-width: 100px;
+}
+
+.remove-collaborator {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--error-bg);
+  border: none;
+  border-radius: 4px;
+  color: var(--error-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.remove-collaborator:hover {
+  background: var(--error-hover-bg);
+}
+
+/* Update Card */
+.update-item {
+  display: flex;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.update-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
 }
 
 .update-content {
   flex: 1;
-  margin-bottom: 1.25rem;
 }
 
-/* Update description and files */
-.update-description {
-  color: var(--text-primary);
-  margin-bottom: 1rem;
-  line-height: 1.6;
-  font-size: 1rem;
-}
-
-.update-meta {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+.update-header {
   display: flex;
-  gap: 1rem;
-}
-
-.update-files {
-  margin-top: 1.25rem;
-  display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
-}
-
-/* Project Actions */
-.project-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 0.5rem;
-}
-
-.project-actions .btn {
-  flex: 1 1 auto;
-  min-width: 140px;
-  justify-content: center;
   margin-bottom: 0.5rem;
 }
 
-@media (max-width: 768px) {
-  .project-actions .btn {
-    flex: 1 1 100%;
-  }
+.update-author {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.update-date {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.update-text {
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Project Info Section */
+.project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.info-card {
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.info-card:last-child {
+  margin-bottom: 0;
 }
 
 /* Utility classes */
@@ -168,70 +318,21 @@ h1 {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Owner and Collaborators Group */
-.owner-collab-group {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .owner-collab-group {
-    grid-template-columns: minmax(200px, 1fr) minmax(200px, 1fr);
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .project-body {
+    grid-template-columns: 200px minmax(350px, 1fr) 200px;
     gap: 1.5rem;
   }
 }
 
-/* Ensure the cards in the group don't have margin-bottom when side by side */
-@media (min-width: 768px) {
-  .owner-collab-group .info-card {
-    margin-bottom: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+@media (max-width: 992px) {
+  .project-body {
+    grid-template-columns: 1fr;
   }
-  
-  .owner-collab-group .collaborators-list,
-  .owner-collab-group .collaborators-grid {
-    flex: 1;
-    max-height: none;
-    overflow: visible;
+
+  .project-files,
+  .owner-collab-group {
+    position: static;
   }
-}
-
-/* For small screens, keep regular margin */
-@media (max-width: 767.98px) {
-  .owner-collab-group .info-card:first-child {
-    margin-bottom: 1.5rem;
-  }
-}
-
-/* Update text content */
-.update-text {
-  word-break: break-word;
-  overflow-wrap: break-word;
-  white-space: pre-wrap;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* Improve update items display */
-.updates-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.update-header {
-  margin-bottom: 1.25rem;
-}
-
-.update-content {
-  flex: 1;
-  margin-bottom: 1.25rem;
-}
-
-.update-files {
-  margin-top: 1.25rem;
 } 

@@ -137,52 +137,93 @@ const gridClasses = computed(() => {
   }
   return classes.join(' ');
 });
+
+const getFileIcon = (fileName) => {
+  if (!fileName) return '📄'
+  
+  const extension = fileName.split('.').pop()?.toLowerCase()
+  
+  switch (extension) {
+    case 'pdf':
+      return '📕'
+    case 'doc':
+    case 'docx':
+      return '📘'
+    case 'xls':
+    case 'xlsx':
+      return '📗'
+    case 'ppt':
+    case 'pptx':
+      return '📙'
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'svg':
+    case 'webp':
+      return '🖼️'
+    case 'mp4':
+    case 'mov':
+    case 'avi':
+    case 'webm':
+      return '🎬'
+    case 'mp3':
+    case 'wav':
+    case 'ogg':
+      return '🎵'
+    case 'zip':
+    case 'rar':
+    case '7z':
+    case 'tar':
+    case 'gz':
+      return '🗜️'
+    case 'html':
+    case 'css':
+    case 'js':
+    case 'jsx':
+    case 'ts':
+    case 'tsx':
+      return '💻'
+    case 'json':
+    case 'xml':
+    case 'csv':
+      return '📊'
+    default:
+      return '📄'
+  }
+}
 </script>
 
 <template>
-  <div class="files-grid-container">
-    <div v-if="loading" class="loading-container">
-      <div class="loading-spinner"></div>
-      <p>Loading files...</p>
-    </div>
-    
-    <div v-else-if="files.length === 0" class="empty-state">
-      <p>{{ emptyMessage }}</p>
-    </div>
-    
-    <div v-else :class="['files-grid', gridClasses]">
-      <!-- Standard/Grid View -->
+  <div :class="['files-grid-improved', { 'compact': layout === 'compact' }]">
+    <div v-if="files && files.length > 0">
       <div v-for="file in files" :key="file.id" class="file-item">
-        
-        
-        <div class="file-info">
-          <div class="filename-container">
-            <h3 class="file-name" :title="file.name || file.filename">{{ file.name || file.filename }}</h3>
-          </div>
-          <div class="file-meta">
-            <span class="file-size">{{ formatFileSize(file.size || file.size_bytes) }}</span>
-            <span v-if="file.created_at" class="file-date">{{ formatDate(file.created_at) }}</span>
-          </div>
+        <div class="file-icon">{{ getFileIcon(file.name) }}</div>
+        <p class="file-name" :title="file.name">{{ file.name }}</p>
+        <div class="file-meta">
+          {{ formatFileSize(file.size) }}
         </div>
-        
         <div class="file-actions">
-          <button class="action-btn download-btn" @click.stop="handleDownload(file)" title="Download">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
+          <button 
+            class="file-action-btn" 
+            @click="$emit('download', file)"
+            title="Download"
+          >
+            ↓
           </button>
-          <button v-if="allowDelete" class="action-btn delete-btn" @click.stop="handleDelete(file)" title="Delete">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              <line x1="10" y1="11" x2="10" y2="17"></line>
-              <line x1="14" y1="11" x2="14" y2="17"></line>
-            </svg>
+          <button 
+            v-if="allowDelete"
+            class="file-action-btn delete" 
+            @click.stop="$emit('delete', file)"
+            title="Delete"
+          >
+            ×
           </button>
         </div>
       </div>
+    </div>
+    <div v-else class="empty-state">
+      {{ emptyMessage || 'No files available' }}
     </div>
   </div>
 </template>
@@ -534,5 +575,33 @@ const gridClasses = computed(() => {
   margin: 0 0 0.25rem 0;
   background: none;
   padding: 0;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-color-light);
+  padding: 2rem;
+  font-size: 0.9rem;
+}
+
+.compact .file-item {
+  min-width: 140px;
+  padding: 0.5rem;
+}
+
+.compact .file-icon {
+  font-size: 1.5rem;
+}
+
+.compact .file-name {
+  font-size: 0.8rem;
+}
+
+.compact .file-meta {
+  font-size: 0.7rem;
+}
+
+.compact .file-actions {
+  margin-top: 0.25rem;
 }
 </style> 

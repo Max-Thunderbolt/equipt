@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { supabase } from '../supabase/config'
 import { useAuth } from './useAuth'
+import { useProjectStore } from '../stores/projectStore'
 
 const TABLES = {
   PROJECTS: 'projects',
@@ -11,6 +12,7 @@ const TABLES = {
 
 export function useProjects() {
   const { user } = useAuth()
+  const { clearCache } = useProjectStore()
   const loading = ref(false)
   const error = ref(null)
 
@@ -188,11 +190,56 @@ export function useProjects() {
     }
   }
 
+  // Add function to update collaborator role
+  const updateCollaboratorRole = async (projectId, userId, newRole) => {
+    try {
+      const { data, error: updateError } = await supabase
+        .from(TABLES.PROJECT_COLLABORATORS)
+        .update({ role: newRole })
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .select()
+
+      if (updateError) throw updateError
+
+      // Clear the project cache to force a refresh
+      clearCache(projectId)
+
+      return data
+    } catch (err) {
+      console.error('Error updating collaborator role:', err)
+      throw err
+    }
+  }
+  
+  // Add function to remove collaborator
+  const removeCollaborator = async (projectId, userId) => {
+    try {
+      const { error: deleteError } = await supabase
+        .from(TABLES.PROJECT_COLLABORATORS)
+        .delete()
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+
+      if (deleteError) throw deleteError
+
+      // Clear the project cache to force a refresh
+      clearCache(projectId)
+
+      return true
+    } catch (err) {
+      console.error('Error removing collaborator:', err)
+      throw err
+    }
+  }
+
   return {
     loading,
     error,
     fetchUserProjects,
     createProject,
-    hasProjectAccess
+    hasProjectAccess,
+    updateCollaboratorRole,
+    removeCollaborator
   }
 } 
