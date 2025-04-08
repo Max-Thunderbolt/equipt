@@ -2,6 +2,20 @@
 
 A modern project management application built with Vue.js and Firebase.
 
+## Environment Setup
+
+1. Copy `.env.example` to `.env` for local development or `.env.production` for production:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Update the environment variables in your new `.env` file:
+   - `VITE_SUPABASE_URL`: Your Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous key
+   - `POSTGRES_DB_PASSWORD`: Your database password (if needed)
+
+Note: Never commit `.env` or `.env.production` files to version control as they contain sensitive information.
+
 ## Project Structure
 
 - `/src` - Vue.js source files
@@ -20,6 +34,9 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Preview production build
+npm run preview
 ```
 
 ## Deployment
@@ -34,5 +51,5 @@ npm install -g firebase-tools
 firebase login
 
 # Deploy to Firebase
-firebase deploy
+npm run deploy
 ``` 
