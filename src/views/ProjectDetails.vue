@@ -8,6 +8,7 @@ import { useFileStorage } from '../composables/useFileStorage'
 import { supabase } from '../supabase/config'
 import FilesGrid from '../components/ui/FilesGrid.vue'
 import ProjectTodos from '../components/ui/ProjectTodos.vue'
+import '../styles/projects.css'
 
 const TABLES = {
   PROJECTS: 'projects',
@@ -23,7 +24,16 @@ const router = useRouter()
 const { user } = useAuth()
 const { hasProjectAccess } = useProjects()
 const { searchResults, loading: userSearchLoading, error: userSearchError, searchUsers } = useUserSearch()
-const { uploadFile, downloadFile, getFileUrl, updateMissingFileUrls, error: fileError, uploading: fileUploading, progress: uploadProgress, deleteFile } = useFileStorage()
+const { uploadFile, downloadFile, getFileUrl, updateMissingFileUrls, error: fileError, uploading: fileUploading, progress: fileUploadProgress, deleteFile } = useFileStorage()
+
+// Add formatFileSize function
+const formatFileSize = (bytes) => {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
 
 const projectId = ref('')
 const project = ref(null)
@@ -108,8 +118,7 @@ const submitUpdate = async () => {
       user_id: user.value?.id
     }
     
-    // Insert the update - using TABLES constant here
-    console.log('Submitting update:', updatePayload)
+    // Insert the update
     const { data: update, error: updateError } = await supabase
       .from(TABLES.PROJECT_UPDATES)
       .insert(updatePayload)
@@ -121,26 +130,17 @@ const submitUpdate = async () => {
       throw new Error(`Failed to create update: ${updateError.message}`)
     }
     
-    console.log('Update record created successfully:', update)
-    
     // Upload files if any
     if (updateData.value.files.length > 0) {
-      console.log(`Uploading ${updateData.value.files.length} files for update`)
-      
       for (const file of updateData.value.files) {
-        uploadProgress.value = 0
-        console.log(`Starting upload for file: ${file.name}`)
-        
         try {
           // Upload each file
           const fileRecord = await uploadFile(file, projectId.value, update.id)
           
           if (!fileRecord) {
             console.error(`Failed to upload file: ${file.name}`)
-            updateError.value = `Failed to upload file: ${file.name}. ${fileError.value || 'Unknown error'}`
+            updateError.value = `Failed to upload file: ${file.name}`
             // Continue with other files
-          } else {
-            console.log(`Successfully uploaded file: ${file.name}`)
           }
         } catch (fileErr) {
           console.error(`Error uploading file ${file.name}:`, fileErr)
@@ -766,7 +766,7 @@ onMounted(() => {
     </div>
 
     <!-- Content State (Main v-else block) -->
-    <div v-else class="project-content-wrapper">
+    <div v-else class="project-details-container">
       <!-- Check project object is valid before rendering anything inside -->
       <div v-if="project" class="project-content">
         <!-- Project Header -->
@@ -782,17 +782,19 @@ onMounted(() => {
         <div class="project-body">
           <!-- Left Column - Files -->
           <div class="project-files">
-            <div class="card-header">
-              <span class="icon">📁</span>
-              <span>Files</span>
+            <div class="files-card">
+              <div class="card-header">
+                <span class="icon">📁</span>
+                <span>Files</span>
+              </div>
+              <!-- FilesGrid needs :files, pass empty array if project.files is null/undefined -->
+              <FilesGrid
+                :files="project.files || []" 
+                :loading="false" 
+                @delete="handleFileDeleted"
+                @download="handleFileDownload"
+              />
             </div>
-            <!-- FilesGrid needs :files, pass empty array if project.files is null/undefined -->
-            <FilesGrid
-              :files="project.files || []" 
-              :loading="false" 
-              @delete="handleFileDeleted"
-              @download="handleFileDownload"
-            />
           </div>
 
           <!-- Middle Column - Description, Actions, Updates -->
@@ -1018,7 +1020,7 @@ onMounted(() => {
         </div> <!-- End project-body -->
       </div> <!-- End v-if="project" -->
 
-      <!-- Fallback if project is null after loading/error checks (shouldn't normally happen) -->
+      <!-- Fallback if project is null after loading/error checks -->
       <div v-else class="error-message">
         Project data could not be displayed.
       </div>
@@ -1066,9 +1068,9 @@ onMounted(() => {
             </div>
             <div v-if="submitting && updateData.files.length" class="upload-progress">
               <div class="progress-bar">
-                <div class="progress-fill" :style="{ width: `${uploadProgress}%` }"></div>
+                <div class="progress-fill" :style="{ width: `${fileUploadProgress}%` }"></div>
               </div>
-              <span class="progress-text">{{ uploadProgress }}% uploaded</span>
+              <span class="progress-text">{{ fileUploadProgress }}% uploaded</span>
             </div>
           </div>
           <div v-if="updateError" class="error-message">
@@ -1196,9 +1198,10 @@ onMounted(() => {
 <style scoped>
 /* Main container */
 .project-details {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100vh;
+  background: var(--color-background);
+  padding: 1rem;
 }
 
 /* Project Header */
@@ -1239,20 +1242,79 @@ onMounted(() => {
 /* Project Body - Three Column Layout */
 .project-body {
   display: grid;
-  grid-template-columns: 250px 1fr 250px; /* Files | Info/Updates | Owner/Collab */
+  grid-template-columns: 300px 1fr 250px; /* Increased from 250px to 300px for files column */
   gap: 1.5rem;
 }
 
 /* Left Column - Files */
 .project-files {
-  /* Styles specific to the files column container if needed */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
-.project-files .loading-spinner {
-  text-align: center;
-  padding: 2rem;
-  color: var(--color-text-secondary);
+
+.files-card,
+.project-tasks,
+.updates-card,
+.owner-card,
+.collaborators-card,
+.description-card,
+.actions-card {
+  background: var(--gradient-winter);
+  border-radius: var(--border-radius-large);
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px var(--color-shadow);
+  font-family: var(--font-mono);
 }
-/* Assuming FilesGrid has its own internal styling */
+
+/* Project info section spacing */
+.project-info > * {
+  margin-bottom: 2rem;
+}
+
+.project-info > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Add gap between project tasks and updates */
+.project-tasks,
+.actions-card,
+.description-card {
+  margin-bottom: 2rem;
+}
+
+/* Updates section specific spacing */
+.updates-card {
+  margin-top: 2rem;
+}
+
+/* Style file items with winter gradient */
+:deep(.file-item) {
+  background: var(--gradient-winter);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+:deep(.file-item:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.files-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+  font-size: 1.1rem;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.files-card .card-header .icon {
+  font-size: 1.2rem;
+}
 
 /* Middle Column - Info, Actions, Updates */
 .project-info {
@@ -1312,7 +1374,6 @@ onMounted(() => {
 
 /* Modals - Basic Styling */
 .modal {
-  /* Basic positioning and backdrop */
   position: fixed;
   inset: 0;
   background-color: rgba(0, 0, 0, 0.6);
@@ -1324,7 +1385,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background-color: var(--color-background);
+  background: var(--gradient-winter);
   padding: 2rem;
   border-radius: var(--border-radius-large);
   box-shadow: var(--shadow-elevation-high);
@@ -1332,6 +1393,7 @@ onMounted(() => {
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+  border: 1px solid var(--color-border);
 }
 
 .modal-header {
@@ -1684,8 +1746,24 @@ onMounted(() => {
 }
 
 /* Responsive Adjustments */
+@media (max-width: 1024px) {
+  .project-body {
+    grid-template-columns: 280px 1fr 220px;
+    gap: 1rem;
+  }
+}
+
 @media (max-width: 768px) {
-   /* ... keep existing responsive styles ... */
+  .project-body {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .project-files,
+  .project-info,
+  .owner-collab-group {
+    width: 100%;
+  }
 }
 
 .loading-message,
@@ -1748,16 +1826,39 @@ onMounted(() => {
 }
 
 .updates-card {
-  @apply bg-white rounded-lg shadow p-6;
+  @apply rounded-lg shadow p-6;
 }
 
 .todos-card {
-  @apply bg-white rounded-lg shadow p-6 mb-6;
+  @apply rounded-lg shadow p-6 mb-6;
 }
 
 .updates-empty {
   padding: 1rem 0;
   font-style: italic;
+}
+
+.project-tasks,
+.updates-card {
+  margin-bottom: 1.5rem;
+}
+
+/* Remove the added file list styles */
+.files-list,
+.file-item,
+.file-info,
+.filename-container,
+.file-details,
+.file-name,
+.file-date,
+.file-actions-container,
+.file-meta,
+.file-size,
+.file-actions,
+.action-btn,
+.download-btn,
+.delete-btn {
+  /* Reset all added styles */
 }
 
 </style> 

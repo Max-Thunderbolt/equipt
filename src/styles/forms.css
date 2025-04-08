@@ -6,7 +6,7 @@
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  color: var(--text-primary);
+  color: var(--color-text);
   font-size: 1rem;
   font-weight: 500;
 }
@@ -19,10 +19,10 @@ textarea,
 .search-input {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-black-20);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  color: var(--text-primary);
+  color: var(--color-text);
   font-size: 1rem;
   transition: all 0.2s ease;
 }
@@ -34,8 +34,8 @@ input[type="password"]:focus,
 textarea:focus,
 .search-input:focus {
   outline: none;
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-equipt-orange-30);
 }
 
 textarea {
@@ -250,42 +250,40 @@ textarea {
 
 /* Button Styles */
 .btn {
-  padding: 0.6rem 1.25rem;
-  border-radius: 6px;
-  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   font-weight: 500;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
-  display: inline-flex;
-  align-items: center;
   gap: 0.5rem;
-  height: auto;
 }
 
 .btn-primary {
-  background: var(--accent-blue);
-  color: white;
+  background: var(--color-accent);
+  color: var(--color-white);
 }
 
 .btn-primary:hover {
-  background: color-mix(in srgb, var(--accent-blue) 90%, white);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  background: var(--color-accent-hover);
 }
 
 .btn-secondary {
-  background: var(--secondary-dark);
-  color: var(--text-primary);
+  background: var(--color-black-30);
+  color: var(--color-text);
 }
 
 .btn-secondary:hover {
-  background: color-mix(in srgb, var(--secondary-dark) 90%, white);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  background: var(--color-black-50);
 }
 
 .btn-danger {
   background: #ef4444;
-  color: white;
+  color: var(--color-white);
 }
 
 .btn-danger:hover {
@@ -294,7 +292,7 @@ textarea {
 
 .btn-success {
   background: #22c55e;
-  color: white;
+  color: var(--color-white);
 }
 
 .btn-success:hover {

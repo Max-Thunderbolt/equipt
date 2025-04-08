@@ -191,23 +191,97 @@ onMounted(async () => {
 .projects-page {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 1rem;
 }
 
-h1 {
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  h1 {
+    margin-bottom: 1rem;
+  }
 }
 
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .projects-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .project-card {
+    margin-bottom: 0;
+  }
+}
+
+/* Modal responsiveness */
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 1rem;
+  }
+
+  .modal-content {
+    max-height: 85vh;
+  }
+
+  .create-form {
+    padding: 1rem;
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+}
+
+/* Improve touch targets for mobile */
+@media (max-width: 640px) {
+  .btn {
+    padding: 0.75rem 1rem;
+    min-height: 44px; /* Minimum touch target size */
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .project-card {
+    padding: 1rem;
+  }
 }
 
 .project-card {
   padding: 1.5rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
-  background: var(--card-bg, var(--secondary-dark));
+  background: var(--gradient-winter);
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   height: 100%;
@@ -341,13 +415,6 @@ h1 {
   background: rgba(239, 68, 68, 0.1);
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
 .header-actions {
   display: flex;
   gap: 0.75rem;
@@ -367,12 +434,12 @@ h1 {
 }
 
 .btn-primary {
-  background-color: var(--primary);
+  background-color: var(--color-equipt-orange);
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-dark, #205db5);
+  background-color: var(--color-equipt-orange-90);
 }
 
 .btn-secondary {
@@ -419,7 +486,7 @@ h1 {
 
 .refresh-icon {
   font-size: 1rem;
-  color: var(--text-secondary);
+  color: var(--color-equipt-orange);
 }
 
 /* Modal styles */

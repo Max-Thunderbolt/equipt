@@ -1,0 +1,61 @@
+/* Explore Page Styles */
+.explore-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.explore-page h1 {
+  margin-bottom: 2rem;
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.project-card {
+  padding: 1.5rem;
+  transition: transform 0.2s ease;
+}
+
+.project-card:hover {
+  transform: translateY(-4px);
+}
+
+.project-card h3 {
+  margin-bottom: 1rem;
+  color: var(--color-text);
+}
+
+.project-card p {
+  color: var(--color-text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.project-meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Empty, loading, and error states */
+.empty-state {
+  text-align: center;
+  padding: 4rem;
+  color: var(--color-text-secondary);
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+
+.error-message {
+  color: var(--error);
+  padding: 1rem;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1);
+} 

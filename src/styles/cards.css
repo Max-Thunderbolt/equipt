@@ -5,25 +5,99 @@
 .updates-card,
 .owner-card,
 .collaborators-card {
-  background: linear-gradient(to bottom, var(--secondary-dark), rgba(30, 30, 36, 1));
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px var(--color-shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   overflow: hidden;
+  background: var(--gradient-winter);
+  font-family: var(--font-mono);
+}
+
+/* Project Card Styles */
+.project-card {
+  background: var(--gradient-winter);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px var(--color-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+  font-family: var(--font-mono);
+}
+
+.project-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px var(--color-shadow);
+}
+
+.project-card h2 {
+  font-family: var(--font-sans);
+  font-size: 1.4rem;
+  color: var(--color-text);
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.project-card .description {
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.project-card .meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* Apply seasonal gradients to different card types */
+.description-card {
+  background: var(--gradient-winter);
+}
+
+.actions-card {
+  background: var(--gradient-winter);
+}
+
+.updates-card {
+  background: var(---gradient-winter);
+}
+
+.owner-card {
+  background: var(--gradient-winter);
+}
+
+
+/* Default gradient for other cards */
+.info-card {
+  background: linear-gradient(to bottom, var(--color-black-90), var(--color-black));
 }
 
 .info-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 16px var(--color-shadow);
 }
 
-.info-card h3 {
+.info-card h3,
+.description-card h3,
+.actions-card h3,
+.updates-card h3,
+.owner-card h3,
+.collaborators-card h3,
+.files-card h3,
+.modal-header h2 {
+  font-family: var(--font-sans);
   margin-bottom: 1.2rem;
   font-size: 1.4rem;
-  color: var(--text-primary);
+  color: var(--color-text);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -106,13 +180,14 @@
 
 .file-item .filename,
 .files-grid .file-name {
+  font-family: var(--font-mono);
   word-break: break-word;
   overflow-wrap: anywhere;
   white-space: normal;
   max-width: 100%;
   font-size: 0.95rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--color-text);
   line-height: 1.4;
   margin-bottom: 0.25rem;
   display: -webkit-box;
@@ -220,37 +295,40 @@
 
 /* Role Badges */
 .role-badge {
-  display: inline-block;
-  padding: 0.35rem 0.75rem;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  text-transform: capitalize;
+  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
   font-weight: 500;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--color-black-30);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
 }
 
 .role-badge.admin {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: var(--color-equipt-orange-20);
+  color: var(--color-equipt-orange);
+  border-color: var(--color-equipt-orange-30);
 }
 
 .role-badge.editor {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: var(--color-white-10);
+  color: var(--color-text);
+  border-color: var(--color-border);
 }
 
 .role-badge.viewer {
-  background: rgba(156, 163, 175, 0.15);
-  color: #9ca3af;
-  border: 1px solid rgba(156, 163, 175, 0.2);
+  background: var(--color-white-10);
+  color: var(--color-text-secondary);
+  border-color: var(--color-border);
 }
 
 .role-badge.owner {
-  background: rgba(249, 115, 22, 0.15);
-  color: #f97316;
-  border: 1px solid rgba(249, 115, 22, 0.2);
+  background: var(--color-equipt-orange-20);
+  color: var(--color-equipt-orange);
+  border-color: var(--color-equipt-orange-30);
 }
 
 /* Loading and Error States */
@@ -310,15 +388,16 @@
 }
 
 .modal-content {
-  background: linear-gradient(to bottom, var(--secondary-dark), rgba(25, 25, 30, 1));
+  font-family: var(--font-mono);
+  background: var(--gradient-winter);
   border-radius: 12px;
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
   padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 8px 25px var(--color-shadow);
 }
 
 .modal-header {
@@ -362,8 +441,9 @@
 }
 
 .confirm-message {
+  font-family: var(--font-sans);
   font-size: 1.1rem;
-  color: var(--text-primary);
+  color: var(--color-text);
   line-height: 1.5;
 }
 
@@ -373,10 +453,11 @@
 }
 
 .confirm-details {
-  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
   font-size: 0.95rem;
   line-height: 1.5;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--color-black-20);
   padding: 1rem;
   border-radius: 8px;
   border-left: 3px solid #ef4444;
@@ -438,9 +519,10 @@
 }
 
 .collaborator-item .user-name {
+  font-family: var(--font-mono);
   font-weight: 500;
   font-size: 0.85rem;
-  color: var(--text-primary);
+  color: var(--color-text);
   word-break: break-word;
   max-width: 100%;
   line-height: 1.2;
@@ -697,4 +779,50 @@
 
 .files-grid-project.files-grid .list .file-name {
   text-align: left !important;
+}
+
+/* Project Detail Cards */
+.files-card,
+.project-tasks,
+.updates-card,
+.owner-card,
+.collaborators-card,
+.description-card,
+.actions-card {
+  background: var(--gradient-winter);
+  border-radius: var(--border-radius-large);
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px var(--color-shadow);
+  font-family: var(--font-mono);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+  font-size: 1.1rem;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.card-header .icon {
+  font-size: 1.2rem;
+}
+
+/* Empty states */
+.updates-empty,
+.owner-missing,
+.collabs-empty {
+  padding: 1rem 0;
+  font-style: italic;
+}
+
+.owner-missing {
+  padding-left: 0.75rem;
+}
+
+.collabs-empty {
+  padding: 0.75rem;
 } 

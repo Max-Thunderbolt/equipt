@@ -153,34 +153,36 @@ const gridClasses = computed(() => {
     <div v-else :class="['files-grid', gridClasses]">
       <!-- Standard/Grid View -->
       <div v-for="file in files" :key="file.id" class="file-item">
-        
-        
         <div class="file-info">
           <div class="filename-container">
-            <h3 class="file-name" :title="file.name || file.filename">{{ file.name || file.filename }}</h3>
-          </div>
-          <div class="file-meta">
-            <span class="file-size">{{ formatFileSize(file.size || file.size_bytes) }}</span>
-            <span v-if="file.created_at" class="file-date">{{ formatDate(file.created_at) }}</span>
+            <div class="file-details">
+              <h3 class="file-name" :title="file.name || file.filename">{{ file.name || file.filename }}</h3>
+              <span class="file-date">{{ formatDate(file.created_at) }}</span>
+            </div>
           </div>
         </div>
         
-        <div class="file-actions">
-          <button class="action-btn download-btn" @click.stop="handleDownload(file)" title="Download">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-          </button>
-          <button v-if="allowDelete" class="action-btn delete-btn" @click.stop="handleDelete(file)" title="Delete">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              <line x1="10" y1="11" x2="10" y2="17"></line>
-              <line x1="14" y1="11" x2="14" y2="17"></line>
-            </svg>
-          </button>
+        <div class="file-actions-container">
+          <div class="file-meta">
+            <span class="file-size">{{ formatFileSize(file.size || file.size_bytes) }}</span>
+          </div>
+          <div class="file-actions">
+            <button class="action-btn download-btn" @click.stop="handleDownload(file)" title="Download">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </button>
+            <button v-if="allowDelete" class="action-btn delete-btn" @click.stop="handleDelete(file)" title="Delete">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -228,8 +230,9 @@ const gridClasses = computed(() => {
 }
 
 .files-grid {
-  display: grid;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .grid-view {
@@ -242,159 +245,144 @@ const gridClasses = computed(() => {
 
 /* Standard / Grid Layout */
 .file-item {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
+  background-color: var(--color-black-90);
+  border-radius: 8px;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   position: relative;
   display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  height: 100%;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  padding: 0.75rem;
+  gap: 1rem;
+  height: auto;
+  min-height: 60px;
 }
 
 .file-item:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-.file-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.file-preview {
-  height: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(30, 30, 36, 0.8);
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-}
-
-.preview-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  padding: 0.5rem;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background-color: var(--color-black-80);
 }
 
 .file-type-icon {
-  width: 100%;
-  height: 100%;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-primary);
-  position: relative;
-  padding: 1rem;
-}
-
-.file-type-icon .icon {
-  font-size: 3.5rem;
-  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3));
+  font-size: 1.2rem;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  background: var(--color-black-80);
+  border-radius: 6px;
 }
 
 .file-info {
-  padding: 0.75rem;
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 70px;
-}
-
-.filename-container {
-  display: flex;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  width: 100%;
-  gap: 0.5rem;
-}
-
-.file-type-badge {
-  background-color: rgba(0, 0, 0, 0.2);
-  padding: 0.35rem;
-  border-radius: 6px;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
+  min-width: 0; /* Ensures text truncation works */
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Ensures text truncation works */
+  gap: 0.2rem;
+  position: relative; /* Added for absolute positioning context */
 }
 
 .file-name {
   font-size: 0.95rem;
   font-weight: 500;
   margin: 0;
-  color: var(--text-primary);
+  color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
+  position: relative;
+  cursor: pointer;
 }
 
-.file-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  width: 100%;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.file-size {
-  background-color: rgba(0, 0, 0, 0.2);
-  padding: 0.35rem 0.65rem;
+.file-name::after {
+  content: attr(title);
+  display: none;
+  position: fixed;
+  background: var(--color-black-90);
+  color: var(--color-text);
+  padding: 8px 12px;
   border-radius: 6px;
-  font-weight: 500;
-  font-size: 0.8rem;
-  letter-spacing: 0.2px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  z-index: 1000;
+  transform: translateY(-100%);
+  margin-top: -8px;
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(8px);
+}
+
+.file-name:hover::after {
+  display: block;
 }
 
 .file-date {
   font-size: 0.8rem;
-  opacity: 0.9;
+  color: var(--color-text-secondary);
+  margin-top: 0.2rem;
+}
+
+.filename-container {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.file-actions-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+.file-meta {
+  display: flex;
+  align-items: center;
+}
+
+.file-size {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  background: var(--color-black-80);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .file-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background-color: rgba(0, 0, 0, 0.15);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  z-index: 2;
 }
 
 .action-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
   border: none;
-  background-color: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
+  background-color: var(--color-black-80);
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
 }
 
 .action-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
+  background-color: var(--color-black-70);
+  color: var(--color-text);
 }
 
 .download-btn:hover {
@@ -402,7 +390,7 @@ const gridClasses = computed(() => {
 }
 
 .delete-btn:hover {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 /* Compact Layout Modifications */
@@ -534,5 +522,29 @@ const gridClasses = computed(() => {
   margin: 0 0 0.25rem 0;
   background: none;
   padding: 0;
+}
+
+.file-actions-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.file-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.file-meta {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.file-size {
+  display: block;
 }
 </style> 

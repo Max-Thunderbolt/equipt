@@ -11,6 +11,17 @@ const { user, session } = useAuth()
 const { profile, fetchProfile } = useProfile()
 const { createProject, loading: projectLoading, error: projectError } = useProjects()
 
+// Mobile menu state
+const isMobileMenuOpen = ref(false)
+
+const toggleMobileMenu = () => {
+  isMobileMenuOpen.value = !isMobileMenuOpen.value
+}
+
+const closeMobileMenu = () => {
+  isMobileMenuOpen.value = false
+}
+
 // Watch for user changes to fetch profile
 watch(() => user.value?.id, async (newUserId) => {
   if (newUserId) {
@@ -103,12 +114,18 @@ const handleLogout = async () => {
   <nav class="nav-container">
     <div class="container flex items-center justify-between">
       <div class="nav-brand">
-        <router-link to="/" class="brand-link">
+        <router-link to="/" class="brand-link" @click="closeMobileMenu">
           <h1 class="brand-text">equipt.</h1>
         </router-link>
       </div>
       
-      <div class="nav-items">
+      <!-- Mobile menu button -->
+      <button class="mobile-menu-btn" @click="toggleMobileMenu">
+        <span class="menu-icon"></span>
+      </button>
+      
+      <!-- Desktop navigation -->
+      <div class="nav-items desktop-only">
         <router-link 
           v-for="item in displayNavItems" 
           :key="item.path"
@@ -119,14 +136,14 @@ const handleLogout = async () => {
         </router-link>
       </div>
 
-      <div class="nav-actions">
+      <div class="nav-actions desktop-only">
         <template v-if="user">
           <button 
             class="btn btn-primary new-project-btn"
             @click="isNewProjectModalOpen = true"
           >
             <span class="icon">+</span>
-            New Project
+            <span class="btn-text">New Project</span>
           </button>
           
           <div class="user-menu">
@@ -158,6 +175,59 @@ const handleLogout = async () => {
         </template>
       </div>
     </div>
+
+    <!-- Mobile menu -->
+    <div class="mobile-menu" :class="{ 'is-open': isMobileMenuOpen }">
+      <div class="mobile-nav-items">
+        <router-link 
+          v-for="item in displayNavItems" 
+          :key="item.path"
+          :to="item.path"
+          class="mobile-nav-item"
+          @click="closeMobileMenu"
+        >
+          {{ item.name }}
+        </router-link>
+      </div>
+
+      <div class="mobile-nav-actions">
+        <template v-if="user">
+          <button 
+            class="btn btn-primary mobile-new-project-btn"
+            @click="isNewProjectModalOpen = true"
+          >
+            <span class="icon">+</span>
+            New Project
+          </button>
+          
+          <router-link to="/profile" class="mobile-user-profile" @click="closeMobileMenu">
+            <div v-if="avatarUrl" class="avatar">
+              <img :src="avatarUrl" :alt="displayName" referrerpolicy="no-referrer">
+            </div>
+            <div v-else class="avatar-placeholder">
+              {{ displayName[0]?.toUpperCase() }}
+            </div>
+            <span class="user-name">{{ displayName }}</span>
+          </router-link>
+          
+          <button 
+            class="btn btn-secondary mobile-sign-out"
+            @click="handleLogout"
+          >
+            Sign Out
+          </button>
+        </template>
+        
+        <template v-else>
+          <button 
+            class="btn btn-primary"
+            @click="isAuthModalOpen = true"
+          >
+            Sign In
+          </button>
+        </template>
+      </div>
+    </div>
   </nav>
 
   <NewProjectModal 
@@ -174,23 +244,31 @@ const handleLogout = async () => {
 
 <style scoped>
 .nav-container {
-  background-color: var(--primary-dark);
+  background-color: var(--color-black);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding: 1rem 0;
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
+}
+
+.container {
+  position: relative;
 }
 
 .brand-link {
   text-decoration: none;
+  z-index: 101;
+  position: relative;
 }
 
 .brand-text {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--color-equipt-orange);
   margin: 0;
+  white-space: nowrap;
 }
 
 .nav-items {
@@ -199,15 +277,16 @@ const handleLogout = async () => {
 }
 
 .nav-item {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s ease;
+  white-space: nowrap;
 }
 
 .nav-item:hover,
 .nav-item.router-link-active {
-  color: var(--text-primary);
+  color: var(--color-text);
 }
 
 .nav-actions {
@@ -241,7 +320,8 @@ const handleLogout = async () => {
   height: 32px;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--secondary-dark);
+  background: var(--color-black-30);
+  flex-shrink: 0;
 }
 
 .avatar img {
@@ -254,27 +334,177 @@ const handleLogout = async () => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--accent-blue);
+  background: var(--color-equipt-orange);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 500;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .user-name {
-  color: var(--text-primary);
+  color: var(--color-text);
   font-weight: 500;
 }
 
-.new-project-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+/* Mobile menu button */
+.mobile-menu-btn {
+  display: none;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 101;
 }
 
-.new-project-btn .icon {
+.menu-icon {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--color-text);
+  margin: 0 auto;
+  transition: all 0.3s ease;
+}
+
+.menu-icon::before,
+.menu-icon::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 2px;
+  background: var(--color-text);
+  left: 0;
+  transition: all 0.3s ease;
+}
+
+.menu-icon::before {
+  top: -8px;
+}
+
+.menu-icon::after {
+  bottom: -8px;
+}
+
+/* Mobile menu */
+.mobile-menu {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-black);
+  padding: 5rem 1.5rem 2rem;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.mobile-menu.is-open {
+  transform: translateX(0);
+}
+
+.mobile-menu.is-open + .mobile-menu-btn .menu-icon {
+  background: transparent;
+}
+
+.mobile-menu.is-open + .mobile-menu-btn .menu-icon::before {
+  transform: rotate(45deg);
+  top: 0;
+}
+
+.mobile-menu.is-open + .mobile-menu-btn .menu-icon::after {
+  transform: rotate(-45deg);
+  bottom: 0;
+}
+
+.mobile-nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.mobile-nav-item {
+  color: var(--color-text);
+  text-decoration: none;
   font-size: 1.25rem;
-  line-height: 1;
+  font-weight: 500;
+  padding: 0.5rem 0;
+}
+
+.mobile-nav-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.mobile-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--color-black-30);
+  border-radius: 8px;
+  text-decoration: none;
+  margin-bottom: 1rem;
+}
+
+.mobile-new-project-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.mobile-sign-out {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-menu-btn {
+    display: block;
+  }
+
+  .mobile-menu {
+    display: block;
+  }
+
+  .nav-container {
+    padding: 0.75rem 0;
+  }
+
+  .brand-text {
+    font-size: 1.25rem;
+  }
+
+  .btn {
+    padding: 0.75rem 1rem;
+  }
+
+  .btn .icon {
+    margin-right: 0.5rem;
+  }
+
+  .new-project-btn .btn-text {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu,
+  .mobile-menu-btn {
+    display: none;
+  }
 }
 </style>
