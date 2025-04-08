@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from './supabase/config'
 import Navigation from './components/layout/Navigation.vue'
+import Toast from './components/ui/Toast.vue'
 
 const router = useRouter()
 
@@ -74,6 +75,7 @@ onMounted(async () => {
     <main class="main-content">
       <router-view />
     </main>
+    <Toast />
   </div>
 </template>
 

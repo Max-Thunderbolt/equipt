@@ -7,13 +7,15 @@ import { useUserSearch } from '../composables/useUserSearch'
 import { useFileStorage } from '../composables/useFileStorage'
 import { supabase } from '../supabase/config'
 import FilesGrid from '../components/ui/FilesGrid.vue'
+import ProjectTodos from '../components/ui/ProjectTodos.vue'
 
 const TABLES = {
   PROJECTS: 'projects',
   PROFILES: 'profiles', 
   PROJECT_COLLABORATORS: 'project_collaborators',
   PROJECT_FILES: 'project_files',
-  PROJECT_UPDATES: 'project_updates'
+  PROJECT_UPDATES: 'project_updates',
+  PROJECT_TODOS: 'project_todos'
 }
 
 const route = useRoute()
@@ -820,6 +822,12 @@ onMounted(() => {
                 </button>
               </div>
             </div>
+
+            <!-- Todos Section -->
+            <ProjectTodos 
+              :projectId="projectId" 
+              :canEdit="isOwner || userRole === 'admin' || userRole === 'editor'"
+            />
 
             <!-- Updates Card -->
             <div class="updates-card">
@@ -1737,6 +1745,19 @@ onMounted(() => {
 
 .update-content {
   /* ... existing styles ... */
+}
+
+.updates-card {
+  @apply bg-white rounded-lg shadow p-6;
+}
+
+.todos-card {
+  @apply bg-white rounded-lg shadow p-6 mb-6;
+}
+
+.updates-empty {
+  padding: 1rem 0;
+  font-style: italic;
 }
 
 </style> 
