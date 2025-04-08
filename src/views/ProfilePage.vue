@@ -2,18 +2,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useProfile } from '../composables/useProfile'
-import { useProjects } from '../composables/useProjects'
 import FilesGrid from '../components/ui/FilesGrid.vue'
 import { useFileStorage } from '../composables/useFileStorage'
 import { supabase } from '../supabase/config'
 
 const { user } = useAuth()
-const { loading, error, fetchProfile, updateProfile } = useProfile()
-const { fetchUserProjects } = useProjects()
+const { loading, error, fetchProfile, updateProfile, projects, fetchUserProjects } = useProfile()
 const { updateMissingFileUrls } = useFileStorage()
 
 const profile = ref(null)
-const projects = ref([])
 const isEditing = ref(false)
 const saving = ref(false)
 const editForm = ref({
@@ -25,50 +22,26 @@ const editForm = ref({
 
 // Carousel state
 const itemsPerPage = 3
-const soloCurrentPage = ref(0)
-const collabCurrentPage = ref(0)
+const currentPage = ref(0)
 
 // Computed properties for projects
-const soloProjects = computed(() => 
-  projects.value.filter(p => !p.collaborators || p.collaborators.length === 0)
-)
+const hasProjects = computed(() => projects.value?.length > 0)
 
-const collabProjects = computed(() => 
-  projects.value.filter(p => p.collaborators && p.collaborators.length > 0)
-)
-
-const displayedSoloProjects = computed(() => {
-  const start = soloCurrentPage.value * itemsPerPage
-  return soloProjects.value.slice(start, start + itemsPerPage)
-})
-
-const displayedCollabProjects = computed(() => {
-  const start = collabCurrentPage.value * itemsPerPage
-  return collabProjects.value.slice(start, start + itemsPerPage)
+const displayedProjects = computed(() => {
+  const start = currentPage.value * itemsPerPage
+  return projects.value?.slice(start, start + itemsPerPage) || []
 })
 
 // Carousel navigation methods
-const nextSoloPage = () => {
-  if (soloCurrentPage.value < Math.ceil(soloProjects.value.length / itemsPerPage) - 1) {
-    soloCurrentPage.value++
+const nextPage = () => {
+  if (currentPage.value < Math.ceil(projects.value?.length / itemsPerPage) - 1) {
+    currentPage.value++
   }
 }
 
-const prevSoloPage = () => {
-  if (soloCurrentPage.value > 0) {
-    soloCurrentPage.value--
-  }
-}
-
-const nextCollabPage = () => {
-  if (collabCurrentPage.value < Math.ceil(collabProjects.value.length / itemsPerPage) - 1) {
-    collabCurrentPage.value++
-  }
-}
-
-const prevCollabPage = () => {
-  if (collabCurrentPage.value > 0) {
-    collabCurrentPage.value--
+const prevPage = () => {
+  if (currentPage.value > 0) {
+    currentPage.value--
   }
 }
 
@@ -98,7 +71,12 @@ const saveProfile = async () => {
   
   saving.value = true
   try {
-    const updatedProfile = await updateProfile(user.value.id, editForm.value)
+    const updatedData = {
+      ...editForm.value,
+      bio: editForm.value.bio || ''
+    }
+    
+    const updatedProfile = await updateProfile(user.value.id, updatedData)
     
     if (updatedProfile) {
       profile.value = updatedProfile
@@ -176,10 +154,7 @@ const handleFileDeleted = (file) => {
 onMounted(async () => {
   if (user.value) {
     profile.value = await fetchProfile(user.value.id)
-    const userProjects = await fetchUserProjects(user.value.id)
-    if (userProjects) {
-      projects.value = userProjects
-    }
+    await fetchUserProjects()
     await fetchUserFiles()
   }
 })
@@ -255,96 +230,54 @@ onMounted(async () => {
               maxlength="500"
             ></textarea>
             <div class="bio-actions">
-              <span class="char-count">{{ 500 - editForm.bio.length }} characters remaining</span>
+              <span class="char-count">{{ 500 - (editForm.bio?.length || 0) }} characters remaining</span>
             </div>
           </form>
         </div>
       </div>
 
       <!-- Projects Section -->
-      <div class="projects-section">
-        <!-- Solo Projects -->
-        <div class="project-category">
-          <h3>Solo Projects</h3>
-          <div class="carousel-container">
-            <button 
-              @click="prevSoloPage" 
-              class="carousel-button prev" 
-              :disabled="soloCurrentPage === 0"
-            >←</button>
-            <div class="projects-grid">
-              <div 
-                v-for="project in displayedSoloProjects" 
-                :key="project.id" 
-                class="project-card"
-                @click="$router.push(`/projects/${project.id}`)"
-              >
-                <h4>{{ project.name }}</h4>
-                <p class="project-description">{{ project.description }}</p>
-                <div class="project-meta">
-                  <span class="date">{{ formatDate(project.created_at) }}</span>
-                </div>
+      <div v-if="hasProjects" class="projects-section">
+        <h3>Projects</h3>
+        <div class="carousel-container">
+          <button 
+            @click="prevPage" 
+            class="carousel-button prev" 
+            :disabled="currentPage === 0"
+          >←</button>
+          <div class="projects-grid">
+            <div 
+              v-for="project in displayedProjects" 
+              :key="project.id" 
+              class="project-card"
+              @click="$router.push(`/projects/${project.id}`)"
+            >
+              <h4>{{ project.name }}</h4>
+              <p class="project-description">{{ project.description }}</p>
+              <div class="project-meta">
+                <span v-if="project.collaborators?.length > 0" :class="['role-badge', project.role]">{{ project.role }}</span>
+                <span class="date">{{ formatDate(project.created_at) }}</span>
               </div>
             </div>
-            <button 
-              @click="nextSoloPage" 
-              class="carousel-button next" 
-              :disabled="soloCurrentPage >= Math.ceil(soloProjects.length / itemsPerPage) - 1"
-            >→</button>
           </div>
-        </div>
-
-        <!-- Collaborative Projects -->
-        <div class="project-category">
-          <h3>Group Projects</h3>
-          <div class="carousel-container">
-            <button 
-              @click="prevCollabPage" 
-              class="carousel-button prev" 
-              :disabled="collabCurrentPage === 0"
-            >←</button>
-            <div class="projects-grid">
-              <div 
-                v-for="project in displayedCollabProjects" 
-                :key="project.id" 
-                class="project-card"
-                @click="$router.push(`/projects/${project.id}`)"
-              >
-                <h4>{{ project.name }}</h4>
-                <p class="project-description">{{ project.description }}</p>
-                <div class="project-meta">
-                  <span :class="['role-badge', project.role]">{{ project.role }}</span>
-                  <span class="date">{{ formatDate(project.created_at) }}</span>
-                </div>
-              </div>
-            </div>
-            <button 
-              @click="nextCollabPage" 
-              class="carousel-button next" 
-              :disabled="collabCurrentPage >= Math.ceil(collabProjects.length / itemsPerPage) - 1"
-            >→</button>
-          </div>
+          <button 
+            @click="nextPage" 
+            class="carousel-button next" 
+            :disabled="currentPage >= Math.ceil(projects.value?.length / itemsPerPage) - 1"
+          >→</button>
         </div>
       </div>
 
       <!-- User Files Section -->
-      <div class="files-section">
+      <div v-if="!fetchingFiles && !filesError && userFiles.length > 0" class="files-section">
         <h3>My Files</h3>
-        <div v-if="fetchingFiles" class="loading">
-          Loading files...
-        </div>
-        <div v-else-if="filesError" class="error">
-          {{ filesError }}
-        </div>
-        <div v-else>
-          <FilesGrid 
-            :files="userFiles" 
-            layout="grid" 
-            :allowDelete="true"
-            emptyMessage="You haven't uploaded any files yet"
-            @delete="handleFileDeleted"
-          />
-        </div>
+        <FilesGrid 
+          :files="userFiles" 
+          layout="grid" 
+          :allowDelete="true"
+          emptyMessage="You haven't uploaded any files yet"
+          @delete="handleFileDeleted"
+        />
       </div>
     </div>
   </div>
@@ -355,6 +288,8 @@ onMounted(async () => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  color: var(--text-primary);
+  background: var(--background);
 }
 
 .profile-container {
@@ -364,10 +299,10 @@ onMounted(async () => {
 }
 
 .profile-section {
-  background: #ffffff;
+  background: var(--secondary-dark);
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
 }
 
 .profile-header {
@@ -543,10 +478,13 @@ button {
   display: flex;
   flex-direction: column;
   gap: 3rem;
+  background: var(--secondary-dark);
+  border-radius: 12px;
+  padding: 2rem;
 }
 
 .project-category h3 {
-  color: #111827;
+  color: var(--text-primary);
   margin: 0 0 1.5rem;
   font-size: 1.5rem;
   font-weight: 600;
@@ -556,49 +494,74 @@ button {
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: #f9fafb;
-  padding: 1rem;
+  background: var(--background);
+  padding: 1.5rem;
   border-radius: 12px;
+  min-height: 300px;
 }
 
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, 300px);
   gap: 1.5rem;
   flex: 1;
+  overflow-x: auto;
+  padding: 0.5rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.projects-grid::-webkit-scrollbar {
+  display: none;
 }
 
 .project-card {
-  background: white;
+  background: var(--secondary-dark);
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s, box-shadow 0.2s;
+  height: 250px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .project-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  border-color: var(--primary);
 }
 
 .project-card h4 {
   margin: 0 0 0.75rem;
-  color: #111827;
+  color: var(--text-primary);
   font-size: 1.25rem;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .project-description {
-  color: #4b5563;
-  margin: 0 0 1rem;
+  color: var(--text-secondary);
+  margin: 0 0 auto;
   font-size: 0.875rem;
   line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .project-meta {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
+  margin-top: 1rem;
+  gap: 0.5rem;
 }
 
 .role-badge {
@@ -607,32 +570,31 @@ button {
   font-size: 0.75rem;
   font-weight: 500;
   text-transform: capitalize;
+  background: var(--primary);
+  color: var(--white);
 }
 
 .role-badge.admin {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--success);
 }
 
 .role-badge.editor {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: var(--info);
 }
 
 .role-badge.viewer {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--text-muted);
 }
 
 .date {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 0.75rem;
 }
 
 .carousel-button {
-  background: white;
-  border: 1px solid #e5e7eb;
-  color: #4b5563;
+  background: var(--secondary-dark);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -646,8 +608,9 @@ button {
 }
 
 .carousel-button:hover:not(:disabled) {
-  background: #f3f4f6;
-  border-color: #9ca3af;
+  background: var(--background);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .carousel-button:disabled {
