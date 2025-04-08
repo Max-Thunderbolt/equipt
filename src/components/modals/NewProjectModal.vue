@@ -14,7 +14,6 @@ const emit = defineEmits(['close', 'submit'])
 const projectData = ref({
   name: '',
   description: '',
-  version: '0.1.0',
   files: [],
   collaborators: []
 })
@@ -84,7 +83,6 @@ const resetForm = () => {
   projectData.value = {
     name: '',
     description: '',
-    version: '0.1.0',
     files: [],
     collaborators: []
   }
@@ -129,18 +127,6 @@ const closeModal = () => {
             placeholder="Describe your project"
             rows="4"
           ></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="project-version">Version</label>
-          <input
-            id="project-version"
-            v-model="projectData.version"
-            type="text"
-            readonly
-            class="version-input"
-          >
-          <small class="version-hint">Version number will automatically increment with each update</small>
         </div>
 
         <div class="form-group">
@@ -332,16 +318,6 @@ input[type="text"]:focus,
 textarea:focus {
   border-color: var(--accent-blue);
   outline: none;
-}
-
-.version-input {
-  background: rgba(255, 255, 255, 0.05) !important;
-  cursor: not-allowed;
-}
-
-.version-hint {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
 }
 
 .file-upload-container {

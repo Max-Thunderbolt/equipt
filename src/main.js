@@ -4,6 +4,8 @@ import router from './router'
 import './style.css'
 import './styles/index.css'
 
+// Initialize the app
 const app = createApp(App)
 app.use(router)
+
 app.mount('#app')

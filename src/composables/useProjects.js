@@ -144,7 +144,6 @@ export function useProjects() {
           description: projectData.description || '',
           owner_id: user.value.id,
           is_public: projectData.is_public || false,
-          version: '0.1.0',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })

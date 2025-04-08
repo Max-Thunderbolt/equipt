@@ -218,24 +218,34 @@ textarea {
 
 /* Select Dropdowns */
 .role-select {
-  padding: 0.35rem 0.75rem;
-  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  min-width: 120px;
+  background: var(--secondary-dark) url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 0.5rem center;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   color: var(--text-primary);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .role-select:hover {
   border-color: rgba(255, 255, 255, 0.2);
+  background-color: color-mix(in srgb, var(--secondary-dark) 90%, white);
 }
 
 .role-select:focus {
   outline: none;
   border-color: var(--accent-blue);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.role-select option {
+  background: var(--secondary-dark);
+  color: var(--text-primary);
+  padding: 8px;
 }
 
 /* Button Styles */

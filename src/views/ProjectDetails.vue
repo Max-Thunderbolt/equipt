@@ -114,15 +114,37 @@ const submitUpdate = async () => {
       .select('*')
       .single()
     
-    if (updateError) throw updateError
+    if (updateError) {
+      console.error('Error creating update record:', updateError)
+      throw new Error(`Failed to create update: ${updateError.message}`)
+    }
+    
+    console.log('Update record created successfully:', update)
     
     // Upload files if any
     if (updateData.value.files.length > 0) {
+      console.log(`Uploading ${updateData.value.files.length} files for update`)
+      
       for (const file of updateData.value.files) {
         uploadProgress.value = 0
+        console.log(`Starting upload for file: ${file.name}`)
         
-        // Upload each file
-        await uploadFile(file, projectId.value, update.id)
+        try {
+          // Upload each file
+          const fileRecord = await uploadFile(file, projectId.value, update.id)
+          
+          if (!fileRecord) {
+            console.error(`Failed to upload file: ${file.name}`)
+            updateError.value = `Failed to upload file: ${file.name}. ${fileError.value || 'Unknown error'}`
+            // Continue with other files
+          } else {
+            console.log(`Successfully uploaded file: ${file.name}`)
+          }
+        } catch (fileErr) {
+          console.error(`Error uploading file ${file.name}:`, fileErr)
+          updateError.value = `Error uploading file ${file.name}: ${fileErr.message}`
+          // Continue with other files
+        }
       }
     }
     
@@ -133,7 +155,7 @@ const submitUpdate = async () => {
     closeUpdateModal()
   } catch (err) {
     console.error('Error submitting update:', err)
-    updateError.value = 'Failed to submit update. Please try again.'
+    updateError.value = `Failed to submit update: ${err.message || 'Unknown error'}`
   } finally {
     submitting.value = false
   }
@@ -173,10 +195,18 @@ const fetchProject = async () => {
     // Get collaborators
     const { data: collaborators, error: collabError } = await supabase
       .from(TABLES.PROJECT_COLLABORATORS)
-      .select('role, user_id')
+      .select(`
+        role,
+        user_id,
+        created_at,
+        updated_at
+      `)
       .eq('project_id', projectId.value)
     
-    if (collabError) console.error('Error fetching collaborators:', collabError)
+    if (collabError) {
+      console.error('Error fetching collaborators:', collabError)
+      throw new Error('Failed to fetch collaborators')
+    }
 
     // Get user profiles for collaborators
     let userProfiles = []
@@ -189,6 +219,7 @@ const fetchProject = async () => {
       
       if (profilesError) {
         console.error('Error fetching collaborator profiles:', profilesError)
+        throw new Error('Failed to fetch collaborator profiles')
       } else {
         userProfiles = profiles || []
       }
@@ -397,6 +428,24 @@ const addNewCollaboratorToDB = async (selectedUser) => {
   }
 }
 
+// Add openEditModal and closeEditModal functions
+const openEditModal = () => {
+  // Initialize edit form with current project data
+  editProjectData.value = {
+    name: project.value.name,
+    description: project.value.description,
+    is_public: project.value.is_public,
+    newCollaborators: []
+  }
+  editError.value = null
+  isEditModalOpen.value = true
+}
+
+const closeEditModal = () => {
+  isEditModalOpen.value = false
+  editError.value = null
+}
+
 // Update submitEdit to remove collaborator adding logic
 const submitEdit = async () => {
   if (!editProjectData.value.name) {
@@ -501,25 +550,44 @@ const deleteProject = async () => {
   }
 }
 
-// Update the updateCollaboratorRole function to include loading state
+// Update the updateCollaboratorRole function to use a direct SQL query
 const updateCollaboratorRole = async (collaboratorId, newRole) => {
   updatingRoleFor.value = collaboratorId
+  editError.value = null
+  
   try {
-    const { error } = await supabase
-      .from(TABLES.PROJECT_COLLABORATORS)
-      .update({ role: newRole })
-      .eq('project_id', projectId.value)
-      .eq('user_id', collaboratorId)
+    console.log(`Updating role for collaborator ${collaboratorId} to ${newRole} in project ${projectId.value}`);
     
-    if (error) throw error
+    // Update the role using a direct SQL query
+    const { error: updateError } = await supabase
+      .rpc('update_collaborator_role', {
+        p_project_id: projectId.value,
+        p_user_id: collaboratorId,
+        p_new_role: newRole
+      });
     
-    // Refresh project data to show updated roles
-    await fetchProject()
+    if (updateError) {
+      console.error('Error updating collaborator role:', updateError);
+      throw updateError;
+    }
+    
+    console.log('Role updated successfully in database');
+    
+    // Update local state immediately
+    if (project.value && project.value.collaborators) {
+      const collaborator = project.value.collaborators.find(c => c.user_id === collaboratorId);
+      if (collaborator) {
+        collaborator.role = newRole;
+      }
+    }
+    
+    // Refresh project data to ensure consistency
+    await fetchProject();
   } catch (err) {
-    console.error('Error updating collaborator role:', err)
-    editError.value = 'Failed to update collaborator role'
+    console.error('Error updating collaborator role:', err);
+    editError.value = err.message || 'Failed to update collaborator role';
   } finally {
-    updatingRoleFor.value = null
+    updatingRoleFor.value = null;
   }
 }
 
@@ -540,22 +608,37 @@ const removeCollaborator = async () => {
   
   removingCollaborator.value = true
   try {
+    console.log(`Removing collaborator ${selectedCollaboratorToRemove.value.user_id} from project ${projectId.value}`);
+    
+    // Use RPC to remove the collaborator
     const { error } = await supabase
-      .from(TABLES.PROJECT_COLLABORATORS)
-      .delete()
-      .eq('project_id', projectId.value)
-      .eq('user_id', selectedCollaboratorToRemove.value.user_id)
+      .rpc('remove_project_collaborator', {
+        p_project_id: projectId.value,
+        p_user_id: selectedCollaboratorToRemove.value.user_id
+      });
     
-    if (error) throw error
+    if (error) {
+      console.error('Error removing collaborator:', error);
+      throw error;
+    }
     
-    // Refresh project data
-    await fetchProject()
-    closeRemoveCollaboratorConfirm()
+    console.log('Collaborator removed successfully');
+    
+    // Update local state immediately
+    if (project.value && project.value.collaborators) {
+      project.value.collaborators = project.value.collaborators.filter(
+        c => c.user_id !== selectedCollaboratorToRemove.value.user_id
+      );
+    }
+    
+    // Refresh project data to ensure consistency
+    await fetchProject();
+    closeRemoveCollaboratorConfirm();
   } catch (err) {
-    console.error('Error removing collaborator:', err)
-    editError.value = 'Failed to remove collaborator'
+    console.error('Error removing collaborator:', err);
+    editError.value = err.message || 'Failed to remove collaborator';
   } finally {
-    removingCollaborator.value = false
+    removingCollaborator.value = false;
   }
 }
 
@@ -778,7 +861,7 @@ onMounted(() => {
             <div class="owner-card">
               <div class="card-header">
                 <span class="icon">👑</span>
-                <span>Owner</span>
+                <span>Project Creator</span>
               </div>
               <!-- Check owner object -->
               <div v-if="project.owner" class="collaborator-item owner-display">
@@ -788,7 +871,6 @@ onMounted(() => {
                 </div>
                 <div class="collaborator-info">
                   <span class="collaborator-name">{{ project.owner.display_name }}</span>
-                  <span class="collaborator-role">Owner</span>
                 </div>
               </div>
               <p v-else class="text-secondary owner-missing">Owner information not available.</p>
@@ -891,14 +973,17 @@ onMounted(() => {
                   </div>
                   <!-- Controls Part (Only for Owner/Admin) -->
                   <div v-if="isOwner || userRole === 'admin'" class="collaborator-controls">
-                    <!-- Show Owner badge if it's the owner -->
-                    <span v-if="collab.user_id === project.owner_id" class="role-badge owner">👑 Owner</span>
+                    <!-- Show crown icon if it's the owner -->
+                    <span v-if="collab.user_id === project.owner_id" class="role-badge owner">👑</span>
                     <!-- Show Dropdown and Remove button otherwise -->
                     <template v-else>
                       <select
                         :value="collab.role"
                         class="role-select"
-                        @change="updateCollaboratorRole(collab.user_id, $event.target.value)"
+                        @change.prevent="(e) => {
+                          e.preventDefault();
+                          updateCollaboratorRole(collab.user_id, e.target.value);
+                        }"
                         :disabled="updatingRoleFor === collab.user_id"
                         title="Change role"
                       >
@@ -1426,24 +1511,43 @@ onMounted(() => {
 }
 
 .role-select {
-  padding: 0.4rem 0.6rem;
-  border-radius: var(--border-radius-small);
+  padding: 0.4rem 2rem 0.4rem 0.8rem;
+  border-radius: var(--border-radius);
   border: 1px solid var(--color-border);
-  background-color: var(--color-background);
+  background-color: var(--color-background-soft);
   color: var(--color-text);
   cursor: pointer;
   font-size: 0.9rem;
+  min-width: 100px;
   appearance: none;
-  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23888888%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.4-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E');
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.5rem center;
-  background-size: 0.65em auto;
-  padding-right: 2rem;
+  background-position: right 0.8rem center;
+  background-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.role-select:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-background);
+}
+
+.role-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-soft);
+}
+
+.role-select option {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  padding: 8px;
 }
 
 .role-select:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
+  background-color: var(--color-background-mute);
 }
 
 .role-spinner {

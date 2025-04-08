@@ -23,7 +23,8 @@ export function useFileStorage() {
       // Create a unique file path
       const filePath = `projects/${projectId}/${Date.now()}_${file.name}`
       
-      // Upload the file to storage
+      // Try to upload directly without checking if bucket exists
+      console.log('Attempting to upload file to path:', filePath)
       const { data, error: uploadError } = await supabase.storage
         .from('project-files')
         .upload(filePath, file, {
@@ -33,6 +34,7 @@ export function useFileStorage() {
             // Calculate and update progress
             if (event.totalBytes) {
               progress.value = Math.round((event.loadedBytes / event.totalBytes) * 100)
+              console.log(`Upload progress: ${progress.value}%`)
             }
           }
         })
@@ -85,7 +87,7 @@ export function useFileStorage() {
       return fileRecord
     } catch (err) {
       console.error('Error uploading file:', err)
-      error.value = err.message
+      error.value = err.message || 'Failed to upload file'
       return null
     } finally {
       uploading.value = false

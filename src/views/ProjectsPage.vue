@@ -124,7 +124,7 @@ onMounted(async () => {
         <p v-if="project.description" class="project-description">{{ project.description }}</p>
         <p v-else class="project-description empty">No description provided</p>
         <div class="project-meta">
-          <span class="version-tag">v{{ project.version || '0.1.0' }}</span>
+          <span class="version-tag">v0.1.0</span>
           <span class="date">{{ formatDate(project.created_at) }}</span>
         </div>
       </div>
