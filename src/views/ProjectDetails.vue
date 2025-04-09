@@ -1287,6 +1287,72 @@ onMounted(() => {
 /* Updates section specific spacing */
 .updates-card {
   margin-top: 2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.updates-card .card-header {
+  position: sticky;
+  top: 0;
+  background: transparent;
+  z-index: 1;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.updates-card .updates-list {
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) var(--color-background-soft);
+  padding-right: 0.5rem;
+}
+
+/* Custom scrollbar styling for webkit browsers */
+.updates-card .updates-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.updates-card .updates-list::-webkit-scrollbar-track {
+  background: var(--color-background-soft);
+  border-radius: 4px;
+}
+
+.updates-card .updates-list::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.updates-card .updates-list::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* Scrollable containers for tasks */
+.project-tasks {
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) var(--color-background-soft);
+}
+
+/* Custom scrollbar styling for webkit browsers */
+.project-tasks::-webkit-scrollbar {
+  width: 8px;
+}
+
+.project-tasks::-webkit-scrollbar-track {
+  background: var(--color-background-soft);
+  border-radius: 4px;
+}
+
+.project-tasks::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.project-tasks::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
 }
 
 /* Style file items with winter gradient */
