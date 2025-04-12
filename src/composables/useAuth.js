@@ -1,4 +1,4 @@
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../supabase/config'
 import { TABLES } from '../constants'
 
@@ -6,6 +6,8 @@ const user = ref(null)
 const session = ref(null)
 const loading = ref(false)
 const error = ref(null)
+let authSubscription = null
+let visibilityHandler = null
 
 // Initialize auth state
 const initAuth = async () => {
@@ -35,7 +37,7 @@ const initAuth = async () => {
     }
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, _session) => {
+    authSubscription = supabase.auth.onAuthStateChange(async (event, _session) => {
       console.log('Auth state changed:', event, {
         session: _session ? {
           user: _session.user?.id,
@@ -59,11 +61,37 @@ const initAuth = async () => {
       }
     })
 
-    return () => {
-      subscription.unsubscribe()
+    // Set up visibility change handler to refresh session when user returns to the page
+    visibilityHandler = handleVisibilityChange
+    document.addEventListener('visibilitychange', visibilityHandler)
+  } catch (error) {
+    console.error('Error initializing auth:', error)
+  }
+}
+
+// Handle visibility change to refresh session when user returns to the page
+const handleVisibilityChange = async () => {
+  if (document.visibilityState === 'visible') {
+    console.log('Page became visible, refreshing session...')
+    try {
+      // Force a session refresh
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
+      
+      if (refreshError) {
+        console.error('Error refreshing session:', refreshError)
+        return
+      }
+      
+      if (refreshedSession) {
+        console.log('Session refreshed successfully')
+        session.value = refreshedSession
+        user.value = refreshedSession.user
+      } else {
+        console.log('No session found after refresh')
+      }
+    } catch (error) {
+      console.error('Error in handleVisibilityChange:', error)
     }
-  } catch (err) {
-    console.error('Error initializing auth:', err)
   }
 }
 
@@ -134,6 +162,21 @@ const ensureUserProfile = async (userData) => {
 initAuth()
 
 export function useAuth() {
+  // Initialize auth on component mount
+  onMounted(() => {
+    initAuth()
+  })
+  
+  // Clean up on component unmount
+  onUnmounted(() => {
+    if (authSubscription) {
+      authSubscription.data.subscription.unsubscribe()
+    }
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler)
+    }
+  })
+
   const registerUser = async (email, password, displayName) => {
     loading.value = true
     error.value = null
