@@ -102,6 +102,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+button {
+  font-family: inherit; /* Ensure buttons inherit the body font */
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-sans);
   font-feature-settings: "kern" -10;

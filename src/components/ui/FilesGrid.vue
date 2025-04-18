@@ -118,8 +118,11 @@ const isImage = (file) => {
          file.mimetype?.startsWith('image/');
 };
 
-const formatFileSize = (bytes) => {
-  if (!bytes) return '0 B';
+const formatFileSize = (file) => {
+  // Try different properties where the size might be stored
+  const bytes = file.size || file.file_size || (file.file_data && file.file_data.size) || 0;
+  
+  if (!bytes || bytes === 0) return '0 B';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -188,7 +191,7 @@ const toggleCollapse = () => {
                 {{ file.name }}
               </span>
               <div class="file-meta">
-                <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                <span class="file-size">{{ formatFileSize(file) }}</span>
                 <span v-if="file.created_at" class="file-date">
                   {{ new Date(file.created_at).toLocaleDateString() }}
                 </span>
@@ -224,7 +227,7 @@ const toggleCollapse = () => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--color-black-95);
+  background: transparent;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -234,13 +237,17 @@ const toggleCollapse = () => {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  background: var(--color-black-90);
+  background: var(--gradient-winter);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .files-header:hover {
-  background: var(--color-black-85);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .header-left {
@@ -271,41 +278,45 @@ const toggleCollapse = () => {
 }
 
 .files-content {
-  padding: 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .files-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .file-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--color-black-90);
+  gap: 16px;
+  padding: 16px;
+  background: var(--gradient-winter);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .file-item:hover {
-  background: var(--color-black-85);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
 }
 
 .file-type-icon {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-black-80);
-  border-radius: 6px;
-  font-size: 16px;
+  background: var(--color-black);
+  border-radius: 8px;
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
 .file-info {
@@ -313,22 +324,23 @@ const toggleCollapse = () => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .file-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .file-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-heading);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
 }
 
 .file-name:hover {
@@ -337,7 +349,7 @@ const toggleCollapse = () => {
 
 .file-meta {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   font-size: 12px;
   color: var(--color-text-secondary);
 }
@@ -345,40 +357,49 @@ const toggleCollapse = () => {
 .file-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .action-btn {
-  padding: 8px;
-  border-radius: 6px;
-  background: transparent;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-black);
   border: none;
-  color: var(--color-text-secondary);
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-size: 16px;
 }
 
 .action-btn:hover {
   background: var(--color-black-80);
-  color: var(--color-text);
+  transform: translateY(-1px);
 }
 
 .loading-state,
 .empty-state {
-  padding: 48px 24px;
   text-align: center;
+  padding: 48px;
   color: var(--color-text-secondary);
+  background: var(--gradient-winter);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
 }
 
-.empty-message {
-  margin-top: 16px;
-  font-size: 14px;
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--color-border);
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-black-80);
   border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
