@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useAuth } from '../../composables/useAuth'
 import { supabase } from '../../supabase/config'
 import { useFileStorage } from '../../composables/useFileStorage'
@@ -37,8 +37,7 @@ const newPinData = ref({
 const PIN_TYPES = {
   NOTE: 'note',
   FILE: 'file',
-  LINK: 'link',
-  IMAGE: 'image'
+  LINK: 'link'
 }
 
 // Database tables
@@ -53,10 +52,67 @@ const draggedPin = ref(null)
 const dragOffset = ref({ x: 0, y: 0 })
 const containerRef = ref(null)
 
+// Add these to your existing refs
+const newPinPreview = ref(null)
+const isPlacingPin = ref(false)
+const mousePosition = ref({ x: 0, y: 0 })
+const pinsContainerRef = ref(null)
+
+// Add these computed properties
+const newPinStyle = computed(() => {
+  if (!isPlacingPin.value) return {}
+  return {
+    position: 'absolute',
+    left: `${mousePosition.value.x}px`,
+    top: `${mousePosition.value.y}px`,
+    opacity: '0.8',
+    pointerEvents: 'none',
+    transform: 'translate(-50%, -50%)',
+    zIndex: 1000
+  }
+})
+
 // Add this to the script section after the imports
-const getPublicUrl = (filePath) => {
+const getPublicUrl = async (filePath) => {
   if (!filePath) return null
-  return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/${filePath}`
+  try {
+    const url = await getFileUrl(filePath)
+    console.log('Generated URL for file:', filePath, url)
+    return url
+  } catch (error) {
+    console.error('Error getting public URL:', error)
+    return null
+  }
+}
+
+// Add a new function to handle image loading errors
+const handleImageError = async (event, filePath) => {
+  console.error('Image load error for:', filePath)
+  if (filePath) {
+    try {
+      // Try to get a fresh URL
+      const newUrl = await getFileUrl(filePath)
+      if (newUrl && newUrl !== event.target.src) {
+        console.log('Retrying with new URL:', newUrl)
+        event.target.src = newUrl
+        return
+      }
+    } catch (error) {
+      console.error('Error retrying image load:', error)
+    }
+  }
+  // If we get here, either there was no filePath or the retry failed
+  event.target.style.display = 'none'
+  const placeholder = document.createElement('div')
+  placeholder.className = 'image-error-placeholder'
+  placeholder.innerHTML = `
+    <div class="error-content">
+      <i class="fas fa-exclamation-triangle"></i>
+      <p>Failed to load image</p>
+      <small>${filePath || 'No file path'}</small>
+    </div>
+  `
+  event.target.parentNode.appendChild(placeholder)
 }
 
 // Fetch pins
@@ -83,10 +139,11 @@ const fetchPins = async () => {
       if (profilesError) throw profilesError
 
       pins.value = pinsData.map(pin => {
-        // Generate URL for image pins
-        if (pin.type === PIN_TYPES.IMAGE && pin.file_data?.file_path) {
+        // Generate URL for image files
+        if (pin.type === PIN_TYPES.FILE && pin.file_data?.file_path && 
+            pin.file_data?.name && pin.file_data.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
           pin.file_data.url = getPublicUrl(pin.file_data.file_path)
-          console.log('Image pin data:', {
+          console.log('Image file data:', {
             type: pin.type,
             filePath: pin.file_data.file_path,
             url: pin.file_data.url
@@ -110,7 +167,24 @@ const fetchPins = async () => {
   }
 }
 
-// Add pin
+// Add to your existing refs
+const pendingPinPosition = ref(null)
+
+// Modify the handlePinPlacement method
+const handlePinPlacement = async (event) => {
+  if (!isPlacingPin.value || !pinsContainerRef.value) return
+
+  const rect = pinsContainerRef.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // Store the position and show the modal
+  pendingPinPosition.value = { x, y }
+  isPlacingPin.value = false
+  isAddPinModalOpen.value = true
+}
+
+// Modify the addPin method
 const addPin = async () => {
   try {
     if (!user.value?.id) {
@@ -124,17 +198,14 @@ const addPin = async () => {
     }
 
     let fileData = null
-    if ((newPinData.value.type === PIN_TYPES.FILE || newPinData.value.type === PIN_TYPES.IMAGE) && newPinData.value.file) {
+    if (newPinData.value.type === PIN_TYPES.FILE && newPinData.value.file) {
       try {
         fileData = await uploadFile(newPinData.value.file, props.projectId)
         if (!fileData) throw new Error('Failed to upload file')
         
-        // Add URL to fileData for immediate display
-        if (newPinData.value.type === PIN_TYPES.IMAGE) {
-          fileData.url = getPublicUrl(fileData.file_path)
+        if (newPinData.value.file.type.startsWith('image/')) {
+          fileData.url = await getPublicUrl(fileData.file_path)
         }
-        
-        console.log('Uploaded file data:', fileData)
       } catch (uploadErr) {
         console.error('File upload error:', uploadErr)
         error.value = 'Failed to upload file. Please try again.'
@@ -151,11 +222,9 @@ const addPin = async () => {
         ? newPinData.value.link.trim() 
         : newPinData.value.content.trim(),
       file_data: fileData,
-      position_x: 0,
-      position_y: 0
+      position_x: pendingPinPosition.value?.x || 0,
+      position_y: pendingPinPosition.value?.y || 0
     }
-
-    console.log('Creating new pin:', pinData)
 
     const { error: pinError } = await supabase
       .from(TABLES.PINS)
@@ -165,17 +234,40 @@ const addPin = async () => {
 
     await fetchPins()
     closeAddPinModal()
+    pendingPinPosition.value = null
   } catch (err) {
     console.error('Error adding pin:', err)
     error.value = err.message || 'Failed to add pin'
     
-    // Cleanup uploaded file if pin creation fails
     if (fileData) {
       try {
         await deleteFile(fileData.file_path, fileData.id)
       } catch (cleanupErr) {
         console.error('Failed to cleanup file after pin creation error:', cleanupErr)
       }
+    }
+  }
+}
+
+// Modify closeAddPinModal to reset pending position
+const closeAddPinModal = () => {
+  isAddPinModalOpen.value = false
+  pendingPinPosition.value = null
+  newPinData.value = {
+    type: PIN_TYPES.NOTE,
+    title: '',
+    content: '',
+    file: null,
+    link: ''
+  }
+}
+
+// Add ESC key handler to cancel pin placement
+const handleKeyDown = (event) => {
+  if (event.key === 'Escape') {
+    if (isPlacingPin.value) {
+      isPlacingPin.value = false
+      pendingPinPosition.value = null
     }
   }
 }
@@ -284,29 +376,23 @@ const startDrag = (event, pin) => {
     y: event.clientY - rect.top
   }
   
-  // Add event listeners
   document.addEventListener('mousemove', onDrag)
   document.addEventListener('mouseup', endDrag)
   
-  // Prevent default behavior
   event.preventDefault()
+  event.stopPropagation()
 }
 
 const onDrag = (event) => {
-  if (!isDragging.value || !draggedPin.value || !containerRef.value) return
+  if (!isDragging.value || !draggedPin.value || !pinsContainerRef.value) return
   
-  const container = containerRef.value.getBoundingClientRect()
+  const container = pinsContainerRef.value.getBoundingClientRect()
+  const x = event.clientX - container.left - dragOffset.value.x
+  const y = event.clientY - container.top - dragOffset.value.y
   
-  // Calculate new position relative to container
-  const newX = event.clientX - container.left - dragOffset.value.x
-  const newY = event.clientY - container.top - dragOffset.value.y
-  
-  // Apply bounds checking
-  const maxX = container.width - 300 // pin width
-  const maxY = container.height - 200 // approximate pin height
-  
-  draggedPin.value.position_x = Math.max(0, Math.min(newX, maxX))
-  draggedPin.value.position_y = Math.max(0, Math.min(newY, maxY))
+  // Update pin position
+  draggedPin.value.position_x = Math.max(0, x)
+  draggedPin.value.position_y = Math.max(0, y)
 }
 
 const endDrag = async () => {
@@ -340,22 +426,6 @@ const openAddPinModal = () => {
   isAddPinModalOpen.value = true
 }
 
-const closeAddPinModal = () => {
-  isAddPinModalOpen.value = false
-  newPinData.value = {
-    type: PIN_TYPES.NOTE,
-    title: '',
-    content: '',
-    file: null,
-    link: ''
-  }
-}
-
-const openEditPinModal = (pin) => {
-  selectedPin.value = { ...pin }
-  isEditPinModalOpen.value = true
-}
-
 const closeEditPinModal = () => {
   isEditPinModalOpen.value = false
   selectedPin.value = null
@@ -364,11 +434,6 @@ const closeEditPinModal = () => {
 // File handlers
 const handleFileSelect = (event) => {
   newPinData.value.file = event.target.files[0]
-  
-  // Auto-detect image type
-  if (newPinData.value.file && newPinData.value.file.type.startsWith('image/')) {
-    newPinData.value.type = PIN_TYPES.IMAGE
-  }
 }
 
 const downloadPinFile = async (pin) => {
@@ -412,136 +477,179 @@ const initializePinPosition = (pin) => {
   return pin
 }
 
+// Add or modify these methods
+const startPinPlacement = () => {
+  isPlacingPin.value = true
+  // Close the add pin modal if it was open
+  isAddPinModalOpen.value = false
+}
+
+const handleMouseMove = (event) => {
+  if (!pinsContainerRef.value) return
+  
+  const rect = pinsContainerRef.value.getBoundingClientRect()
+  mousePosition.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  }
+}
+
 onMounted(() => {
   fetchPins()
+  document.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 
 <template>
   <div class="pinboard">
-    <!-- Header -->
     <div class="pinboard-header">
       <h2>Project Pinboard</h2>
-      <button class="btn btn-primary" @click="openAddPinModal">+ Pin</button>
+      <button class="btn-add-pin" @click="startPinPlacement">+ Pin</button>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-      Loading pins...
-    </div>
-
-    <!-- Error State -->
-    <div v-if="error" class="error-state">
-      {{ error }}
-    </div>
-
-    <!-- Pins Container -->
-    <div v-else ref="containerRef" class="pins-container">
+    <div 
+      ref="pinsContainerRef"
+      class="pins-container"
+      @mousemove="handleMouseMove"
+      @click="handlePinPlacement"
+    >
+      <!-- Pin Preview when placing -->
       <div 
-        v-for="pin in pins" 
-        :key="pin.id" 
-        class="pin-card" 
-        :class="[pin.type, { 'is-dragging': isDragging && draggedPin?.id === pin.id }]"
-        :style="{ 
-          transform: `translate3d(${pin.position_x || 0}px, ${pin.position_y || 0}px, 0)`,
-          cursor: canModifyPin(pin) ? 'move' : 'default'
-        }"
-        @mousedown="startDrag($event, pin)"
+        v-if="isPlacingPin"
+        class="pin-card pin-preview"
+        :style="newPinStyle"
       >
-        <!-- Pin Header -->
         <div class="pin-header">
-          <span class="pin-icon">
-            {{ pin.type === 'note' ? '📝' : pin.type === 'file' ? '📎' : pin.type === 'image' ? '🖼️' : '🔗' }}
-          </span>
-          <h3 class="pin-title">{{ pin.title }}</h3>
-          <div v-if="canModifyPin(pin)" class="pin-actions">
-            <button 
-              v-if="pin.type === 'note'"
-              class="action-btn" 
-              @click.stop="openEditPinModal(pin)"
-              title="Edit"
-            >
-              ✏️
-            </button>
-            <button 
-              class="action-btn" 
-              @click.stop="deletePin(pin)"
-              title="Delete"
-            >
-              🗑️
-            </button>
-          </div>
+          <span class="pin-icon">📌</span>
+          <h3 class="pin-title">New Pin</h3>
         </div>
+      </div>
 
-        <!-- Pin Content -->
-        <div class="pin-content">
-          <!-- Note Content -->
-          <p v-if="pin.type === 'note'" class="note-content">
-            {{ pin.content }}
-          </p>
+      <!-- Loading State -->
+      <div v-if="loading" class="loading-state">
+        Loading pins...
+      </div>
 
-          <!-- File Content -->
-          <div v-else-if="pin.type === 'file'" class="file-content">
-            <button class="download-btn" @click.stop="downloadPinFile(pin)">
-              Download File
-            </button>
-            <span class="file-name">{{ pin.file_data?.name }}</span>
-          </div>
+      <!-- Error State -->
+      <div v-if="error" class="error-state">
+        {{ error }}
+      </div>
 
-          <!-- Image Content -->
-          <div v-else-if="pin.type === 'image'" class="image-content">
-            <img 
-              v-if="pin.file_data?.url" 
-              :src="pin.file_data.url" 
-              :alt="pin.title"
-              class="pin-image"
-              @load="() => console.log('Image loaded:', pin.file_data.url)"
-              @error="error => console.error('Image load error:', error, pin.file_data)"
-            >
-            <div v-else class="image-placeholder">
-              <span>{{ pin.file_data ? 'Failed to load image' : 'Image not available' }}</span>
-              <div v-if="pin.file_data" class="debug-info">
-                Path: {{ pin.file_data.file_path }}
-              </div>
+      <!-- Pins Container -->
+      <div v-else ref="containerRef" class="pins-container">
+        <div 
+          v-for="pin in pins" 
+          :key="pin.id" 
+          class="pin-card" 
+          :class="[pin.type, { 'is-dragging': isDragging && draggedPin?.id === pin.id }]"
+          :style="{ 
+            transform: `translate3d(${pin.position_x || 0}px, ${pin.position_y || 0}px, 0)`,
+            cursor: canModifyPin(pin) ? 'move' : 'default'
+          }"
+          @mousedown="startDrag($event, pin)"
+        >
+          <!-- Pin Header -->
+          <div class="pin-header">
+            <span class="pin-icon">
+              {{ pin.type === 'note' ? '📝' : pin.type === 'file' ? (pin.file_data?.name && pin.file_data.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? '🖼️' : '📎') : '🔗' }}
+            </span>
+            <h3 class="pin-title">{{ pin.title }}</h3>
+            <div v-if="canModifyPin(pin)" class="pin-actions">
+              <button 
+                v-if="pin.type === 'note'"
+                class="action-btn" 
+                @click.stop="openEditPinModal(pin)"
+                title="Edit"
+              >
+                ✏️
+              </button>
+              <button 
+                class="action-btn" 
+                @click.stop="deletePin(pin)"
+                title="Delete"
+              >
+                🗑️
+              </button>
             </div>
           </div>
 
-          <!-- Link Content -->
-          <div v-else class="link-content">
-            <a 
-              :href="pin.content" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              class="link-url"
-              @click.stop
-            >
+          <!-- Pin Content -->
+          <div class="pin-content">
+            <!-- Note Content -->
+            <p v-if="pin.type === 'note'" class="note-content">
               {{ pin.content }}
-            </a>
-            <img 
-              v-if="isImageUrl(pin.content)" 
-              :src="pin.content" 
-              :alt="pin.title"
-              class="link-image"
-              @error="error => { console.error('Link image load error:', error) }"
-            >
-          </div>
-        </div>
+            </p>
 
-        <!-- Pin Footer -->
-        <div class="pin-footer">
-          <div class="pin-creator">
-            <img 
-              v-if="pin.creator?.avatar_url"
-              :src="pin.creator.avatar_url"
-              :alt="pin.creator?.display_name"
-              class="creator-avatar"
-            >
-            <span v-else class="creator-initial">
-              {{ pin.creator?.display_name?.[0] || '?' }}
-            </span>
-            <span class="creator-name">{{ pin.creator?.display_name }}</span>
+            <!-- File Content -->
+            <div v-else-if="pin.type === 'file'" class="file-content">
+              <!-- Image File -->
+              <div v-if="pin.file_data?.name && pin.file_data.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)" class="image-content">
+                <img 
+                  v-if="pin.file_data?.url && !pin.file_data.loadError" 
+                  :src="pin.file_data.url" 
+                  :alt="pin.title"
+                  class="pin-image"
+                  @load="() => console.log('Image loaded successfully:', pin.file_data.url)"
+                  @error="(e) => handleImageError(e, pin.file_data?.file_path)"
+                >
+                <div v-else class="image-placeholder">
+                  <span>{{ pin.file_data?.loadError ? 'Failed to load image' : 'Image not available' }}</span>
+                  <div v-if="pin.file_data" class="debug-info">
+                    <div>Path: {{ pin.file_data.file_path }}</div>
+                    <div v-if="pin.file_data.url">URL: {{ pin.file_data.url }}</div>
+                  </div>
+                </div>
+              </div>
+              <!-- Regular File -->
+              <div v-else>
+                <button class="download-btn" @click.stop="downloadPinFile(pin)">
+                  Download File
+                </button>
+                <span class="file-name">{{ pin.file_data?.name }}</span>
+              </div>
+            </div>
+
+            <!-- Link Content -->
+            <div v-else class="link-content">
+              <a 
+                :href="pin.content" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="link-url"
+                @click.stop
+              >
+                {{ pin.content }}
+              </a>
+              <img 
+                v-if="isImageUrl(pin.content)" 
+                :src="pin.content" 
+                :alt="pin.title"
+                class="link-image"
+                @error="error => { console.error('Link image load error:', error) }"
+              >
+            </div>
           </div>
-          <span class="pin-date">{{ new Date(pin.created_at).toLocaleDateString() }}</span>
+
+          <!-- Pin Footer -->
+          <div class="pin-footer">
+            <div class="pin-creator">
+              <img 
+                v-if="pin.creator?.avatar_url"
+                :src="pin.creator.avatar_url"
+                :alt="pin.creator?.display_name"
+                class="creator-avatar"
+              >
+              <span v-else class="creator-initial">
+                {{ pin.creator?.display_name?.[0] || '?' }}
+              </span>
+              <span class="creator-name">{{ pin.creator?.display_name }}</span>
+            </div>
+            <span class="pin-date">{{ new Date(pin.created_at).toLocaleDateString() }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -571,13 +679,6 @@ onMounted(() => {
                 @click="newPinData.type = 'file'"
               >
                 📎 File
-              </button>
-              <button 
-                type="button"
-                :class="{ active: newPinData.type === 'image' }"
-                @click="newPinData.type = 'image'"
-              >
-                🖼️ Image
               </button>
               <button 
                 type="button"
@@ -611,13 +712,12 @@ onMounted(() => {
               ></textarea>
             </template>
 
-            <template v-else-if="newPinData.type === 'file' || newPinData.type === 'image'">
-              <label>{{ newPinData.type === 'image' ? 'Image' : 'File' }}</label>
+            <template v-else-if="newPinData.type === 'file'">
+              <label>File</label>
               <div class="file-upload-box">
                 <input
                   type="file"
                   @change="handleFileSelect"
-                  :accept="newPinData.type === 'image' ? 'image/*' : undefined"
                   required
                 >
               </div>
@@ -687,48 +787,67 @@ onMounted(() => {
 
 <style scoped>
 .pinboard {
-  width: 100%;
-  height: 100%;
+  position: fixed;
+  top: 72px; /* Height of top nav */
+  left: 280px; /* Width of side nav */
+  right: 0;
+  bottom: 0;
+  background: var(--color-black);
   display: flex;
   flex-direction: column;
-  background: transparent;
-  position: relative;
+  overflow: hidden;
 }
 
 .pinboard-header {
-  width: 100%;
+  flex: 0 0 48px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 32px;
+  justify-content: space-between;
+  padding: 0 24px;
   background: var(--color-black-90);
-  height: 72px;
   border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0;
 }
 
 .pinboard-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--color-heading);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.btn-add-pin {
+  background-color: var(--color-equipt-orange);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  min-width: 80px;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+.btn-add-pin:hover {
+  background-color: var(--color-equipt-orange-90);
 }
 
 .pins-container {
   flex: 1;
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
   padding: 24px;
-  user-select: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  align-items: start;
+  overflow-y: auto;
 }
 
 .pin-card {
-  position: absolute;
   background: var(--color-black);
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -736,19 +855,15 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: 300px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s ease;
-  z-index: 1;
-  will-change: transform;
-  touch-action: none;
 }
 
 .pin-card.is-dragging {
+  position: fixed; /* Only when dragging */
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   z-index: 10;
   opacity: 0.9;
-  transition: none;
+  width: 300px; /* Fixed width when dragging */
 }
 
 .pin-header {
@@ -767,6 +882,9 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: var(--color-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pin-actions {
@@ -795,6 +913,8 @@ onMounted(() => {
 .note-content {
   white-space: pre-wrap;
   margin: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .file-content {
@@ -854,6 +974,8 @@ onMounted(() => {
   color: var(--color-primary);
   text-decoration: none;
   word-break: break-all;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .link-url:hover {
@@ -951,5 +1073,86 @@ onMounted(() => {
   opacity: 0.7;
 }
 
+.file-name {
+  color: var(--color-text);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
 /* Inherit existing modal styles from ProjectDetails.vue */
+.image-error-placeholder {
+  width: 100%;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa;
+  border: 1px dashed #dee2e6;
+  border-radius: 4px;
+}
+
+.error-content {
+  text-align: center;
+  color: #6c757d;
+}
+
+.error-content i {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.error-content p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.error-content small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--color-black);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.pin-preview {
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border: 2px dashed var(--color-border);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.pin-card {
+  position: absolute;
+  width: 300px;
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.pin-card.is-dragging {
+  z-index: 100;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
 </style> 

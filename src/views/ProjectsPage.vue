@@ -109,23 +109,17 @@ onMounted(async () => {
       >
         <div class="project-header">
           <h3>{{ project.name || 'Untitled Project' }}</h3>
-          <span 
-            v-if="project.role" 
-            class="role-badge" 
-            :class="{ 
-              'owner': project.role === 'owner', 
-              'admin': project.role === 'admin', 
-              'member': project.role === 'member' 
-            }"
-          >
+          <span >
             {{ project.role }}
           </span>
         </div>
-        <p v-if="project.description" class="project-description">{{ project.description }}</p>
-        <p v-else class="project-description empty">No description provided</p>
-        <div class="project-meta">
-          <span class="version-tag">v0.1.0</span>
-          <span class="date">{{ formatDate(project.created_at) }}</span>
+        <div class="project-details-block">
+          <p v-if="project.description" class="project-description">{{ project.description }}</p>
+          <p v-else class="project-description empty">No description provided</p>
+          <div class="project-meta">
+            <span class="version-tag">v0.1.0</span>
+            <span class="date">{{ formatDate(project.created_at) }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -278,7 +272,7 @@ onMounted(async () => {
 }
 
 .project-card {
-  padding: 1.5rem;
+  padding: 0;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
   background: var(--gradient-winter);
@@ -299,7 +293,8 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.75rem;
+  padding: 1.5rem 1.5rem 0 1.5rem;
+  margin-bottom: 4px;
 }
 
 .project-card h3 {
@@ -317,21 +312,19 @@ onMounted(async () => {
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0.5px;
+  color: var(--text-secondary);
 }
 
 .role-badge.owner {
-  background-color: var(--primary);
-  color: var(--white);
+  color: var(--primary);
 }
 
 .role-badge.admin {
-  background-color: var(--success);
-  color: var(--white);
+  color: var(--success);
 }
 
 .role-badge.member {
-  background-color: var(--info);
-  color: var(--white);
+  color: var(--info);
 }
 
 .project-description {
@@ -349,6 +342,16 @@ onMounted(async () => {
 .project-description.empty {
   color: var(--text-muted, #666);
   font-style: italic;
+}
+
+.project-details-block {
+  background: var(--color-black, #000);
+  border-radius: 0 0 8px 8px;
+  padding: 12px 1.5rem;
+  margin: 0;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .project-meta {

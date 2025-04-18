@@ -38,9 +38,20 @@ onMounted(async () => {
 }) 
 
 const navigationItems = ref([
-  { name: 'Projects', path: '/projects' },
-  { name: 'Explore', path: '/explore' },
-  { name: 'Showcase', path: '/showcase' }
+  { 
+    name: 'Projects', 
+    path: '/projects',
+    dropdown: [
+      { name: 'New Project', action: () => isNewProjectModalOpen.value = true, isPrimaryAction: true },
+      { name: 'My Projects', path: '/projects' },
+      { name: 'Files', path: '/files' }
+    ]
+  },
+  { 
+    name: 'Explore', 
+    path: '/explore',
+    dropdown: [] // Empty for now
+  }
 ])
 
 // Add computed property to determine navigation items based on auth state
@@ -48,12 +59,35 @@ const displayNavItems = computed(() => {
   // Basic navigation items for everyone
   const items = [...navigationItems.value]
   
-  // Add Files link only for authenticated users
-  if (user.value) {
-    items.splice(1, 0, { name: 'Files', path: '/files' })
-  }
+  // Filter out the Profile item if it exists (we handle it separately)
+  const filteredItems = items.filter(item => item.name !== 'Profile')
   
-  return items
+  return filteredItems
+})
+
+// Add dropdown state management
+const activeDropdown = ref(null)
+
+const toggleDropdown = (itemName) => {
+  if (activeDropdown.value === itemName) {
+    activeDropdown.value = null
+  } else {
+    activeDropdown.value = itemName
+  }
+}
+
+const closeDropdowns = () => {
+  activeDropdown.value = null
+}
+
+// Close dropdowns when clicking outside
+onMounted(() => {
+  document.addEventListener('click', (event) => {
+    const navElement = document.querySelector('.nav-container')
+    if (navElement && !navElement.contains(event.target)) {
+      closeDropdowns()
+    }
+  })
 })
 
 const isNewProjectModalOpen = ref(false)
@@ -115,7 +149,7 @@ const handleLogout = async () => {
     <div class="container flex items-center justify-between">
       <div class="nav-brand">
         <router-link to="/" class="brand-link" @click="closeMobileMenu">
-          <h1 class="brand-text">equipt.</h1>
+          <h1 class="brand-text"><img src="../../assets/equiptBanner.png" alt="equipt logo" class="brand-logo-nav"></h1>
         </router-link>
       </div>
       
@@ -126,28 +160,49 @@ const handleLogout = async () => {
       
       <!-- Desktop navigation -->
       <div class="nav-items desktop-only">
-        <router-link 
+        <div 
           v-for="item in displayNavItems" 
           :key="item.path"
-          :to="item.path"
-          class="nav-item"
+          class="nav-item-container"
+          @click.stop="toggleDropdown(item.name)"
         >
-          {{ item.name }}
-        </router-link>
+          <div class="nav-item" :class="{ 'active': activeDropdown === item.name }">
+            {{ item.name }}
+            <span class="dropdown-arrow" v-if="item.dropdown && item.dropdown.length">▼</span>
+          </div>
+          
+          <!-- Dropdown menu -->
+          <div 
+            v-if="item.dropdown && item.dropdown.length" 
+            class="dropdown-menu"
+            :class="{ 'show': activeDropdown === item.name }"
+          >
+            <template v-for="dropdownItem in item.dropdown" :key="dropdownItem.path || dropdownItem.name">
+              <router-link 
+                v-if="dropdownItem.path"
+                :to="dropdownItem.path"
+                class="dropdown-item"
+                @click="closeDropdowns"
+              >
+                {{ dropdownItem.name }}
+              </router-link>
+              <button 
+                v-else-if="dropdownItem.action"
+                class="dropdown-item"
+                :class="{ 'dropdown-item-primary': dropdownItem.isPrimaryAction }"
+                @click="dropdownItem.action"
+              >
+                {{ dropdownItem.name }}
+              </button>
+            </template>
+          </div>
+        </div>
       </div>
 
       <div class="nav-actions desktop-only">
         <template v-if="user">
-          <button 
-            class="btn btn-primary new-project-btn"
-            @click="isNewProjectModalOpen = true"
-          >
-            <span class="icon">+</span>
-            <span class="btn-text">New Project</span>
-          </button>
-          
           <div class="user-menu">
-            <router-link to="/profile" class="user-profile">
+            <div class="user-profile" @click="toggleDropdown('profile')">
               <div v-if="avatarUrl" class="avatar">
                 <img :src="avatarUrl" :alt="displayName" referrerpolicy="no-referrer">
               </div>
@@ -155,13 +210,21 @@ const handleLogout = async () => {
                 {{ displayName[0]?.toUpperCase() }}
               </div>
               <span class="user-name">{{ displayName }}</span>
-            </router-link>
-            <button 
-              class="btn btn-secondary"
-              @click="handleLogout"
+              <span class="dropdown-arrow">▼</span>
+            </div>
+            
+            <!-- Profile dropdown -->
+            <div 
+              class="dropdown-menu profile-dropdown"
+              :class="{ 'show': activeDropdown === 'profile' }"
             >
-              Sign Out
-            </button>
+              <router-link to="/profile" class="dropdown-item" @click="closeDropdowns">
+                My Profile
+              </router-link>
+              <button class="dropdown-item" @click="handleLogout">
+                Sign Out
+              </button>
+            </div>
           </div>
         </template>
         
@@ -179,46 +242,46 @@ const handleLogout = async () => {
     <!-- Mobile menu -->
     <div class="mobile-menu" :class="{ 'is-open': isMobileMenuOpen }">
       <div class="mobile-nav-items">
-        <router-link 
+        <div 
           v-for="item in displayNavItems" 
           :key="item.path"
-          :to="item.path"
-          class="mobile-nav-item"
-          @click="closeMobileMenu"
+          class="mobile-nav-item-container"
         >
-          {{ item.name }}
-        </router-link>
+          <div class="mobile-nav-item" @click="toggleDropdown(item.name)">
+            {{ item.name }}
+            <span class="dropdown-arrow" v-if="item.dropdown && item.dropdown.length">▼</span>
+          </div>
+          
+          <!-- Mobile dropdown menu -->
+          <div 
+            v-if="item.dropdown && item.dropdown.length" 
+            class="mobile-dropdown-menu"
+            :class="{ 'show': activeDropdown === item.name }"
+          >
+            <template v-for="dropdownItem in item.dropdown" :key="dropdownItem.path || dropdownItem.name">
+              <router-link 
+                v-if="dropdownItem.path"
+                :to="dropdownItem.path"
+                class="mobile-dropdown-item"
+                @click="closeMobileMenu"
+              >
+                {{ dropdownItem.name }}
+              </router-link>
+              <button 
+                v-else-if="dropdownItem.action"
+                class="mobile-dropdown-item"
+                :class="{ 'dropdown-item-primary': dropdownItem.isPrimaryAction }"
+                @click="dropdownItem.action"
+              >
+                {{ dropdownItem.name }}
+              </button>
+            </template>
+          </div>
+        </div>
       </div>
 
       <div class="mobile-nav-actions">
-        <template v-if="user">
-          <button 
-            class="btn btn-primary mobile-new-project-btn"
-            @click="isNewProjectModalOpen = true"
-          >
-            <span class="icon">+</span>
-            New Project
-          </button>
-          
-          <router-link to="/profile" class="mobile-user-profile" @click="closeMobileMenu">
-            <div v-if="avatarUrl" class="avatar">
-              <img :src="avatarUrl" :alt="displayName" referrerpolicy="no-referrer">
-            </div>
-            <div v-else class="avatar-placeholder">
-              {{ displayName[0]?.toUpperCase() }}
-            </div>
-            <span class="user-name">{{ displayName }}</span>
-          </router-link>
-          
-          <button 
-            class="btn btn-secondary mobile-sign-out"
-            @click="handleLogout"
-          >
-            Sign Out
-          </button>
-        </template>
-        
-        <template v-else>
+        <template v-if="!user">
           <button 
             class="btn btn-primary"
             @click="isAuthModalOpen = true"
@@ -246,34 +309,47 @@ const handleLogout = async () => {
 .nav-container {
   background-color: var(--color-black);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem 0;
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 100;
+  left: 0;
   width: 100%;
+  height: 72px;
+  z-index: 1000;
 }
 
 .container {
-  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  max-width: 100%;
+  margin: 0;
+}
+
+.nav-brand {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
 }
 
 .brand-link {
   text-decoration: none;
-  z-index: 101;
-  position: relative;
 }
 
-.brand-text {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-equipt-orange);
-  margin: 0;
-  white-space: nowrap;
+.brand-logo-nav {
+  width: 100px;
+  height: 100px;
+  margin: -14px 0;
 }
 
 .nav-items {
+  flex: 1;
   display: flex;
+  justify-content: center;
+  align-items: center;
   gap: 2rem;
+  margin: 0 48px;
 }
 
 .nav-item {
@@ -282,33 +358,103 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: color 0.2s ease;
   white-space: nowrap;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
 }
 
 .nav-item:hover,
-.nav-item.router-link-active {
+.nav-item.active {
   color: var(--color-text);
 }
 
+.dropdown-arrow {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+
+.nav-item.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--color-black);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  min-width: 180px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  padding: 0.5rem 0;
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: block;
+  padding: 0.75rem 1.5rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--color-text);
+}
+
+.dropdown-item-primary {
+  background-color: var(--color-equipt-orange);
+  color: white;
+  font-weight: 500;
+}
+
+.dropdown-item-primary:hover {
+  background-color: var(--color-equipt-orange-90);
+  color: white;
+}
+
+.profile-dropdown {
+  right: 0;
+  left: auto;
+}
+
 .nav-actions {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
 .user-menu {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  position: relative;
 }
 
 .user-profile {
-  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem;
-  border-radius: 6px;
-  transition: background-color 0.2s ease;
+  cursor: pointer;
 }
 
 .user-profile:hover {
@@ -430,12 +576,61 @@ const handleLogout = async () => {
   margin-bottom: 2rem;
 }
 
+.mobile-nav-item-container {
+  position: relative;
+}
+
 .mobile-nav-item {
   color: var(--color-text);
   text-decoration: none;
   font-size: 1.25rem;
   font-weight: 500;
   padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-dropdown-menu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  padding-left: 1rem;
+}
+
+.mobile-dropdown-menu.show {
+  max-height: 500px;
+}
+
+.mobile-dropdown-item {
+  display: block;
+  padding: 0.75rem 0;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: 1rem;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.mobile-dropdown-item.dropdown-item-primary {
+  background-color: var(--color-equipt-orange);
+  color: white;
+  font-weight: 500;
+  margin: 0 -1.5rem;
+  padding: 0.75rem 1.5rem;
+}
+
+.mobile-dropdown-item.dropdown-item-primary:hover {
+  background-color: var(--color-equipt-orange-90);
+  color: white;
+}
+
+.mobile-dropdown-item:hover {
+  color: var(--color-text);
 }
 
 .mobile-nav-actions {
@@ -444,30 +639,28 @@ const handleLogout = async () => {
   gap: 1rem;
 }
 
-.mobile-user-profile {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--color-black-30);
-  border-radius: 8px;
-  text-decoration: none;
-  margin-bottom: 1rem;
-}
-
 .mobile-new-project-btn {
   width: 100%;
   justify-content: center;
   padding: 1rem;
 }
 
-.mobile-sign-out {
-  width: 100%;
-  justify-content: center;
-}
-
 /* Responsive styles */
 @media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  .brand-logo-nav {
+    width: 80px;
+    height: 80px;
+    margin: -4px 0;
+  }
+
+  .nav-items {
+    margin: 0 24px;
+  }
+
   .desktop-only {
     display: none;
   }
@@ -481,7 +674,20 @@ const handleLogout = async () => {
   }
 
   .nav-container {
-    padding: 0.75rem 0;
+    padding: 0;
+    height: 72px; /* Maintain consistent height on mobile */
+  }
+
+  .container {
+    height: 72px; /* Maintain consistent height on mobile */
+  }
+
+  .nav-brand {
+    padding-left: 16px;
+  }
+
+  .nav-actions {
+    padding-right: 16px;
   }
 
   .brand-text {

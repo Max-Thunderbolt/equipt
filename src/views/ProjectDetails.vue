@@ -9,6 +9,7 @@ import { supabase } from '../supabase/config'
 import FilesGrid from '../components/ui/FilesGrid.vue'
 import ProjectSideNav from '../components/project/ProjectSideNav.vue'
 import Pinboard from '../components/project/Pinboard.vue'
+import ProjectTodos from '../components/ui/ProjectTodos.vue'
 import '../styles/projects.css'
 
 const TABLES = {
@@ -73,15 +74,6 @@ const selectedCollaboratorToRemove = ref(null)
 // Add these variables to track loading states
 const updatingRoleFor = ref(null)
 const removingCollaborator = ref(false)
-
-// Add todo state
-const isAddTodoModalOpen = ref(false)
-const todoData = ref({
-  title: '',
-  description: '',
-  status: 'pending'
-})
-const todoError = ref(null)
 
 // Add file handling state
 const selectedFiles = ref([])
@@ -379,107 +371,114 @@ const handleSectionChange = (section) => {
   activeSection.value = section
 }
 
-const openAddTodoModal = () => {
-  todoData.value = {
-    title: '',
-    description: '',
-    status: 'pending'
-  }
-  todoError.value = null
-  isAddTodoModalOpen.value = true
-}
-
-const closeAddTodoModal = () => {
-  isAddTodoModalOpen.value = false
-}
-
-const submitTodo = async () => {
-  if (submitting.value) return
+// Edit project functions
+const openEditModal = () => {
+  if (!project.value) return
   
-  submitting.value = true
-  todoError.value = null
+  editProjectData.value = {
+    name: project.value.name,
+    description: project.value.description || '',
+    is_public: project.value.is_public || false
+  }
+  editError.value = null
+  isEditModalOpen.value = true
+}
+
+const closeEditModal = () => {
+  isEditModalOpen.value = false
+  editProjectData.value = {
+    name: '',
+    description: '',
+    is_public: false
+  }
+}
+
+const submitEdit = async () => {
+  if (editSubmitting.value) return
+  
+  editSubmitting.value = true
+  editError.value = null
   
   try {
     // Validate input
-    if (!todoData.value.title.trim()) {
-      todoError.value = 'Please provide a title for the task'
-      submitting.value = false
+    if (!editProjectData.value.name.trim()) {
+      editError.value = 'Project name is required'
+      editSubmitting.value = false
       return
     }
     
-    // Create todo record
-    const todoPayload = {
+    // Update project record
+    const { error: updateError } = await supabase
+      .from(TABLES.PROJECTS)
+      .update({
+        name: editProjectData.value.name.trim(),
+        description: editProjectData.value.description.trim(),
+        is_public: editProjectData.value.is_public,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', projectId.value)
+    
+    if (updateError) throw updateError
+    
+    // Create project update for the edit
+    const updatePayload = {
       project_id: projectId.value,
-      title: todoData.value.title,
-      description: todoData.value.description,
-      status: todoData.value.status,
+      description: `Updated project details: ${editProjectData.value.name}`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      created_by: user.value?.id
+      user_id: user.value?.id
     }
     
-    const { error: todoError } = await supabase
-      .from(TABLES.PROJECT_TODOS)
-      .insert(todoPayload)
+    const { error: updateRecordError } = await supabase
+      .from(TABLES.PROJECT_UPDATES)
+      .insert(updatePayload)
     
-    if (todoError) throw todoError
+    if (updateRecordError) console.error('Error creating update record:', updateRecordError)
     
     // Refresh project data
     await fetchProject()
     
     // Reset and close modal
-    closeAddTodoModal()
+    closeEditModal()
   } catch (err) {
-    console.error('Error creating todo:', err)
-    todoError.value = `Failed to create task: ${err.message || 'Unknown error'}`
+    console.error('Error updating project:', err)
+    editError.value = `Failed to update project: ${err.message || 'Unknown error'}`
   } finally {
-    submitting.value = false
+    editSubmitting.value = false
   }
 }
 
-const toggleTodoStatus = async (todo) => {
+// Add this function to handle role updates
+const handleRoleUpdated = async (data) => {
   try {
-    const newStatus = todo.status === 'completed' ? 'pending' : 'completed'
+    // Update the local collaborator data
+    const collaboratorIndex = project.value.collaborators.findIndex(
+      c => c.user_id === data.userId
+    )
     
-    const { error } = await supabase
-      .from(TABLES.PROJECT_TODOS)
-      .update({ 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', todo.id)
+    if (collaboratorIndex !== -1) {
+      project.value.collaborators[collaboratorIndex].role = data.newRole
+    }
     
-    if (error) throw error
-    
-    // Update local state
-    if (project.value?.todos) {
-      const todoIndex = project.value.todos.findIndex(t => t.id === todo.id)
-      if (todoIndex !== -1) {
-        project.value.todos[todoIndex].status = newStatus
+    // Create project update for role change
+    const collaborator = project.value.collaborators.find(c => c.user_id === data.userId)
+    if (collaborator) {
+      const updatePayload = {
+        project_id: projectId.value,
+        description: `Changed ${collaborator.user?.display_name || 'Unknown User'}'s role to ${data.newRole}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user_id: user.value?.id
       }
+      
+      const { error: updateError } = await supabase
+        .from(TABLES.PROJECT_UPDATES)
+        .insert(updatePayload)
+      
+      if (updateError) console.error('Error creating update record:', updateError)
     }
   } catch (err) {
-    console.error('Error updating todo status:', err)
-    error.value = `Failed to update task status: ${err.message}`
-  }
-}
-
-const deleteTodo = async (todoId) => {
-  try {
-    const { error } = await supabase
-      .from(TABLES.PROJECT_TODOS)
-      .delete()
-      .eq('id', todoId)
-    
-    if (error) throw error
-    
-    // Update local state
-    if (project.value?.todos) {
-      project.value.todos = project.value.todos.filter(t => t.id !== todoId)
-    }
-  } catch (err) {
-    console.error('Error deleting todo:', err)
-    error.value = `Failed to delete task: ${err.message}`
+    console.error('Error handling role update:', err)
   }
 }
 
@@ -512,8 +511,10 @@ onMounted(() => {
         :owner="project.owner"
         :collaborators="project.collaborators"
         :active-section="activeSection"
+        :project-id="project.id"
         @section-change="handleSectionChange"
         @delete-project="openDeleteConfirm"
+        @role-updated="handleRoleUpdated"
       />
       <div class="pinboard-container">
         <Pinboard :project-id="project.id" />
@@ -528,8 +529,10 @@ onMounted(() => {
         :owner="project.owner"
         :collaborators="project.collaborators"
         :active-section="activeSection"
+        :project-id="project.id"
         @section-change="handleSectionChange"
         @delete-project="openDeleteConfirm"
+        @role-updated="handleRoleUpdated"
       />
 
       <div class="project-content">
@@ -560,39 +563,10 @@ onMounted(() => {
 
             <!-- Todos Card -->
             <div class="info-card todos-card">
-              <div class="card-header">
-                <h3>Project Tasks</h3>
-                <button class="btn btn-primary btn-sm" @click="openAddTodoModal">
-                  + Task
-                </button>
-              </div>
-              <div v-if="!project.todos || project.todos.length === 0" class="empty-state">
-                No tasks yet.
-              </div>
-              <div v-else class="todos-list">
-                <div v-for="todo in project.todos" :key="todo.id" class="todo-item">
-                  <div class="todo-checkbox">
-                    <input 
-                      type="checkbox" 
-                      :checked="todo.status === 'completed'"
-                      @change="toggleTodoStatus(todo)"
-                    >
-                  </div>
-                  <div class="todo-content" :class="{ completed: todo.status === 'completed' }">
-                    <div class="todo-title">{{ todo.title }}</div>
-                    <div v-if="todo.description" class="todo-description">
-                      {{ todo.description }}
-                    </div>
-                  </div>
-                  <button 
-                    class="todo-delete"
-                    @click="deleteTodo(todo.id)"
-                    title="Delete task"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
+              <ProjectTodos 
+                :project-id="project.id" 
+                :can-edit="isOwner || userRole === 'admin'" 
+              />
             </div>
           </div>
 
@@ -712,42 +686,50 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Add Todo Modal -->
-    <div v-if="isAddTodoModalOpen" class="modal">
+    <!-- Edit Project Modal -->
+    <div v-if="isEditModalOpen" class="modal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h2>Add Task</h2>
-          <button class="close-button" @click="closeAddTodoModal">×</button>
+          <h2>Edit Project</h2>
+          <button class="close-button" @click="closeEditModal">×</button>
         </div>
-        <form @submit.prevent="submitTodo" class="todo-form">
+        <form @submit.prevent="submitEdit" class="edit-form">
           <div class="form-group">
-            <label for="todo-title">Task Title</label>
+            <label for="project-name">Project Name</label>
             <input
-              id="todo-title"
-              v-model="todoData.title"
+              id="project-name"
+              v-model="editProjectData.name"
               type="text"
               required
-              placeholder="What needs to be done?"
+              placeholder="Enter project name"
             >
           </div>
           <div class="form-group">
-            <label for="todo-description">Description (Optional)</label>
+            <label for="project-description">Description</label>
             <textarea
-              id="todo-description"
-              v-model="todoData.description"
-              rows="3"
-              placeholder="Add any additional details..."
+              id="project-description"
+              v-model="editProjectData.description"
+              rows="4"
+              placeholder="Describe your project..."
             ></textarea>
           </div>
-          <div v-if="todoError" class="error-message">
-            {{ todoError }}
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                v-model="editProjectData.is_public"
+              >
+              <span>Make this project public</span>
+            </label>
+            <p class="help-text">Public projects are visible to everyone, even non-members.</p>
+          </div>
+          <div v-if="editError" class="error-message">
+            {{ editError }}
           </div>
           <div class="form-actions">
-            <button type="button" class="btn btn-secondary" @click="closeAddTodoModal">
-              Cancel
-            </button>
-            <button type="submit" class="btn btn-primary" :disabled="submitting">
-              {{ submitting ? 'Adding...' : 'Add Task' }}
+            <button type="button" class="btn btn-secondary" @click="closeEditModal">Cancel</button>
+            <button type="submit" class="btn btn-primary" :disabled="editSubmitting">
+              {{ editSubmitting ? 'Saving...' : 'Save Changes' }}
             </button>
           </div>
         </form>
@@ -774,7 +756,6 @@ onMounted(() => {
 }
 
 .pinboard-view {
-  background: var(--gradient-winter);
   position: fixed;
   top: 64px;
   left: 0;
@@ -790,6 +771,7 @@ onMounted(() => {
   top: 0;
   bottom: 0;
   overflow: hidden;
+  background: var(--color-black);
 }
 
 /* Main Content Area */
@@ -1119,76 +1101,8 @@ textarea {
   margin-top: 32px;
 }
 
-/* Todos List Styles */
-.todos-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.todo-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  background: var(--color-black);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-}
-
-.todo-checkbox {
-  padding-top: 4px;
-}
-
-.todo-checkbox input {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.todo-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.todo-content.completed {
-  opacity: 0.7;
-}
-
-.todo-content.completed .todo-title {
-  text-decoration: line-through;
-}
-
-.todo-title {
-  font-weight: 500;
-  color: var(--color-text);
-  margin-bottom: 4px;
-}
-
-.todo-description {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  white-space: pre-wrap;
-}
-
-.todo-delete {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  line-height: 1;
-}
-
-.todo-delete:hover {
-  color: var(--color-danger);
-  background: var(--color-black-80);
-}
-
-/* Todo Form Styles */
-.todo-form input[type="text"] {
+/* Edit Form Styles */
+.edit-form input[type="text"] {
   width: 100%;
   padding: 12px;
   border: 1px solid var(--color-border);
@@ -1197,9 +1111,29 @@ textarea {
   color: var(--color-text);
 }
 
-.todo-form input[type="text"]:focus {
+.edit-form input[type="text"]:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.help-text {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+  margin-left: 24px;
 }
 
 /* Responsive Design */

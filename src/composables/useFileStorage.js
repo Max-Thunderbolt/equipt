@@ -143,14 +143,40 @@ export function useFileStorage() {
   }
   
   // Get a temporary URL for a file
-  const getFileUrl = (filePath) => {
+  const getFileUrl = async (filePath) => {
     if (!filePath) return null
     
-    const { data } = supabase.storage
-      .from('project-files')
-      .getPublicUrl(filePath)
-    
-    return data?.publicUrl
+    try {
+      // First try to get a signed URL which includes proper CORS headers
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('project-files')
+        .createSignedUrl(filePath, 3600) // 1 hour expiry
+      
+      if (signedData?.signedUrl && !signedError) {
+        console.log('Generated signed URL:', signedData.signedUrl)
+        return signedData.signedUrl
+      }
+      
+      // If signed URL fails, try to get a public URL
+      const { data: publicData, error: publicError } = await supabase.storage
+        .from('project-files')
+        .getPublicUrl(filePath)
+      
+      if (publicData?.publicUrl && !publicError) {
+        console.log('Generated public URL:', publicData.publicUrl)
+        return publicData.publicUrl
+      }
+      
+      // If both methods fail, construct a manual URL as a last resort
+      const manualUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/project-files/${filePath}`
+      console.log('Falling back to manual URL:', manualUrl)
+      return manualUrl
+      
+    } catch (error) {
+      console.error('Error generating file URL:', error)
+      // Return a manual URL as a last resort
+      return `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/project-files/${filePath}`
+    }
   }
   
   // Delete a file from storage

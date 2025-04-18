@@ -1,41 +1,64 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+// Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:', {
-    url: supabaseUrl ? 'present' : 'missing',
-    key: supabaseAnonKey ? 'present' : 'missing'
-  })
-  throw new Error('Missing Supabase configuration')
+  console.error('Missing Supabase environment variables. Please check your .env file.')
+  throw new Error('Missing Supabase environment variables')
 }
 
-console.log('Initializing Supabase client with:', {
-  url: supabaseUrl,
-  key: supabaseAnonKey.substring(0, 10) + '...'
-})
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Create Supabase client
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
-    storage: localStorage,
-    storageKey: 'supabase.auth.token',
-    flowType: 'pkce'
-  },
-  global: {
-    headers: {
-      'x-client-info': 'supabase-js-v2'
-    }
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    }
+    detectSessionInUrl: true
   }
 })
+
+// Export supabase client as both default and named export
+export { supabase }
+
+// Function to ensure storage bucket exists
+export async function ensureStorageBucket() {
+  try {
+    // Check if bucket exists
+    const { data: buckets, error: listError } = await supabase
+      .storage
+      .listBuckets()
+    
+    if (listError) {
+      console.error('Error listing buckets:', listError)
+      throw listError
+    }
+    
+    // Check if project-files bucket exists
+    const projectFilesBucket = buckets.find(bucket => bucket.name === 'project-files')
+    
+    if (!projectFilesBucket) {
+      // Create bucket if it doesn't exist
+      const { data, error: createError } = await supabase
+        .storage
+        .createBucket('project-files', {
+          public: false,
+          fileSizeLimit: 52428800 // 50MB
+        })
+      
+      if (createError) {
+        console.error('Error creating bucket:', createError)
+        throw createError
+      }
+      
+      console.log('Created project-files bucket:', data)
+    }
+  } catch (error) {
+    console.error('Error in ensureStorageBucket:', error)
+    throw error
+  }
+}
 
 // Database schema types
 export const TABLES = {
@@ -44,42 +67,4 @@ export const TABLES = {
   PROJECT_FILES: 'project_files'
 }
 
-// Function to ensure the project-files storage bucket exists
-export const ensureStorageBucket = async () => {
-  try {
-    // Check if the bucket exists
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
-    
-    if (bucketsError) {
-      console.error('Error listing buckets:', bucketsError)
-      return false
-    }
-    
-    const projectFilesBucket = buckets.find(b => b.name === 'project-files')
-    
-    if (!projectFilesBucket) {
-      console.log('Creating project-files bucket...')
-      
-      // Create the bucket
-      const { data, error: createError } = await supabase.storage.createBucket('project-files', {
-        public: true,
-        fileSizeLimit: 52428800, // 50MB
-        allowedMimeTypes: ['*/*']
-      })
-      
-      if (createError) {
-        console.error('Error creating bucket:', createError)
-        return false
-      }
-      
-      console.log('Successfully created project-files bucket')
-      return true
-    }
-    
-    console.log('project-files bucket already exists')
-    return true
-  } catch (err) {
-    console.error('Error ensuring storage bucket:', err)
-    return false
-  }
-} 
+export default supabase 
