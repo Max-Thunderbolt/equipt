@@ -237,7 +237,7 @@ const toggleCollapse = () => {
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  background: var(--gradient-winter);
+  background: black;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   cursor: pointer;
@@ -295,7 +295,7 @@ const toggleCollapse = () => {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: var(--gradient-winter);
+  background: black;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   transition: all 0.2s ease;

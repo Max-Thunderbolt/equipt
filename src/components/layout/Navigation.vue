@@ -306,6 +306,11 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
+/* CSS at the beginning of the component's style section */
+:root {
+  --navbar-height: 72px;
+}
+
 .nav-container {
   background-color: var(--color-black);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -313,12 +318,12 @@ const handleLogout = async () => {
   top: 0;
   left: 0;
   width: 100%;
-  height: 72px;
+  height: var(--navbar-height);
   z-index: 1000;
 }
 
 .container {
-  height: 100%;
+  height: var(--navbar-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -352,6 +357,10 @@ const handleLogout = async () => {
   margin: 0 48px;
 }
 
+.nav-item-container {
+  position: relative;
+}
+
 .nav-item {
   color: var(--color-text-secondary);
   text-decoration: none;
@@ -381,25 +390,38 @@ const handleLogout = async () => {
 
 .dropdown-menu {
   position: absolute;
-  top: 100%;
-  left: 0;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
   background: var(--color-black);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   min-width: 180px;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(10px);
   transition: all 0.2s ease;
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   padding: 0.5rem 0;
 }
 
+.dropdown-menu::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: var(--color-black);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .dropdown-menu.show {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 
 .dropdown-item {
@@ -675,11 +697,11 @@ const handleLogout = async () => {
 
   .nav-container {
     padding: 0;
-    height: 72px; /* Maintain consistent height on mobile */
+    height: var(--navbar-height);
   }
 
   .container {
-    height: 72px; /* Maintain consistent height on mobile */
+    height: var(--navbar-height);
   }
 
   .nav-brand {

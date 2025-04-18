@@ -6,6 +6,26 @@
           ← Back to Projects
         </router-link>
         <h1 class="project-name">{{ projectName }}</h1>
+        
+        <!-- Project Description (Collapsible) -->
+        <div class="project-description-container">
+          <button 
+            class="description-toggle" 
+            @click="toggleDescription"
+            :aria-expanded="isDescriptionExpanded"
+          >
+            <span>Description</span>
+            <span class="toggle-icon">{{ isDescriptionExpanded ? '−' : '+' }}</span>
+          </button>
+          <div 
+            v-if="isDescriptionExpanded" 
+            class="project-description"
+            :class="{ 'has-description': projectDescription }"
+          >
+            <p v-if="projectDescription">{{ projectDescription }}</p>
+            <p v-else class="no-description">No description provided.</p>
+          </div>
+        </div>
       </div>
       
       <div class="nav-items">
@@ -208,8 +228,20 @@ const props = defineProps({
   projectId: {
     type: String,
     required: true
+  },
+  projectDescription: {
+    type: String,
+    default: ''
   }
 })
+
+// Description toggle state
+const isDescriptionExpanded = ref(false)
+
+// Toggle description visibility
+const toggleDescription = () => {
+  isDescriptionExpanded.value = !isDescriptionExpanded.value
+}
 
 const { user } = useAuth()
 
@@ -283,7 +315,7 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
 <style scoped>
 .project-side-nav {
   width: 280px;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--navbar-height, 72px));
   background: var(--color-black-95); /* Primary color (60%) */
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -291,7 +323,7 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
   gap: 32px;
   padding: 24px 16px;
   position: fixed;
-  top: 64px;
+  top: var(--navbar-height, 72px);
   left: 0;
 }
 
@@ -655,5 +687,55 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
 
 .btn-secondary:hover {
   background: var(--color-black-80);
+}
+
+.project-description-container {
+  margin-top: 8px;
+}
+
+.description-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.description-toggle:hover {
+  background: var(--color-black-90);
+  color: var(--color-text);
+}
+
+.toggle-icon {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+.project-description {
+  padding: 12px;
+  margin-top: 4px;
+  background: var(--color-black-90);
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.project-description p {
+  margin: 0;
+}
+
+.no-description {
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 </style> 

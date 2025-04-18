@@ -99,11 +99,11 @@ const handleFileChange = (event) => {
 
 const submitUpdate = async () => {
   if (submitting.value) return
-  
+
   submitting.value = true
   updateError.value = null
   fileUploadProgress.value = 0
-  
+
   try {
     // Create update record if description is provided
     let updateId = null
@@ -115,33 +115,33 @@ const submitUpdate = async () => {
         updated_at: new Date().toISOString(),
         user_id: user.value?.id
       }
-      
+
       const { data: update, error: updateError } = await supabase
         .from(TABLES.PROJECT_UPDATES)
         .insert(updatePayload)
         .select('*')
         .single()
-      
+
       if (updateError) throw updateError
       updateId = update.id
     }
-    
+
     // Upload files if any
     if (selectedFiles.value.length > 0) {
       const totalFiles = selectedFiles.value.length
       let uploadedFiles = 0
-      
+
       for (const file of selectedFiles.value) {
         try {
           // Upload each file
           const fileRecord = await uploadFile(file, projectId.value, updateId)
-          
+
           if (!fileRecord) {
             console.error(`Failed to upload file: ${file.name}`)
             updateError.value = `Failed to upload file: ${file.name}`
             // Continue with other files
           }
-          
+
           uploadedFiles++
           fileUploadProgress.value = Math.round((uploadedFiles / totalFiles) * 100)
         } catch (fileErr) {
@@ -151,10 +151,10 @@ const submitUpdate = async () => {
         }
       }
     }
-    
+
     // Refresh project data
     await fetchProject()
-    
+
     // Reset and close modal
     closeUpdateModal()
   } catch (err) {
@@ -167,10 +167,10 @@ const submitUpdate = async () => {
 
 const fetchProject = async () => {
   if (!projectId.value) return
-  
+
   loading.value = true
   error.value = null
-  
+
   try {
     // First get the project, files and todos
     const { data: projectData, error: projectError } = await supabase
@@ -182,16 +182,16 @@ const fetchProject = async () => {
       `)
       .eq('id', projectId.value)
       .single()
-    
+
     if (projectError) throw projectError
-    
+
     // Get the owner information
     const { data: ownerData, error: ownerError } = await supabase
       .from(TABLES.PROFILES)
       .select('*')
       .eq('id', projectData.owner_id)
       .single()
-    
+
     if (ownerError) console.error('Error fetching owner:', ownerError)
 
     // Get collaborators
@@ -204,7 +204,7 @@ const fetchProject = async () => {
         updated_at
       `)
       .eq('project_id', projectId.value)
-    
+
     if (collabError) throw new Error('Failed to fetch collaborators')
 
     // Get user profiles for collaborators
@@ -215,7 +215,7 @@ const fetchProject = async () => {
         .from(TABLES.PROFILES)
         .select('*')
         .in('id', userIds)
-      
+
       if (profilesError) {
         throw new Error('Failed to fetch collaborator profiles')
       } else {
@@ -235,12 +235,12 @@ const fetchProject = async () => {
     } else if (updates && updates.length > 0) {
       // Get user profiles for each update
       const userIds = [...new Set(updates.map(update => update.user_id))]
-      
+
       const { data: userProfiles, error: profilesError } = await supabase
         .from(TABLES.PROFILES)
         .select('id, display_name, avatar_url')
         .in('id', userIds)
-      
+
       if (profilesError) {
         console.error('Error fetching user profiles:', profilesError)
       } else {
@@ -249,7 +249,7 @@ const fetchProject = async () => {
           update.user = userProfiles.find(profile => profile.id === update.user_id) || null
         })
       }
-      
+
       projectData.updates = updates
     } else {
       projectData.updates = []
@@ -267,11 +267,11 @@ const fetchProject = async () => {
       updates: projectData.updates || [],
       todos: projectData.project_todos || []
     }
-    
+
     // Check if user has access to this project
     if (user.value) {
-      const hasAccess = project.value.owner_id === user.value.id || 
-                        project.value.collaborators.some(c => c.user_id === user.value.id)
+      const hasAccess = project.value.owner_id === user.value.id ||
+        project.value.collaborators.some(c => c.user_id === user.value.id)
       if (!hasAccess && !project.value.is_public) {
         error.value = "You don't have access to this project"
         router.push('/projects')
@@ -285,7 +285,7 @@ const fetchProject = async () => {
     // Update file URLs
     const ensureFileUrls = async () => {
       if (!project.value || !project.value.files || project.value.files.length === 0) return
-      
+
       // First update in-memory file objects
       project.value.files = project.value.files.map(file => {
         if (!file.url && file.file_path) {
@@ -293,7 +293,7 @@ const fetchProject = async () => {
         }
         return file
       })
-      
+
       // Then update database records
       const filesToUpdate = project.value.files.filter(file => !file.url && file.file_path)
       if (filesToUpdate.length > 0) {
@@ -327,11 +327,11 @@ const isOwner = computed(() => {
 // Check if the current user is a collaborator
 const userRole = computed(() => {
   if (!user.value || !project.value || !project.value.collaborators) return null
-  
+
   const collaboration = project.value.collaborators.find(
     c => c.user && c.user.id === user.value.id
   )
-  
+
   return collaboration ? collaboration.role : null
 })
 
@@ -342,7 +342,7 @@ const handleFileDownload = async (file) => {
       error.value = 'Invalid file information'
       return
     }
-    
+
     await downloadFile(file.file_path)
   } catch (err) {
     console.error('Error downloading file:', err)
@@ -354,7 +354,7 @@ const handleFileDownload = async (file) => {
 const handleFileDeleted = async (file) => {
   try {
     const success = await deleteFile(file.file_path, file.id)
-    
+
     if (success) {
       // Update the local project files list when a file is deleted
       project.value.files = project.value.files.filter(f => f.id !== file.id)
@@ -374,7 +374,7 @@ const handleSectionChange = (section) => {
 // Edit project functions
 const openEditModal = () => {
   if (!project.value) return
-  
+
   editProjectData.value = {
     name: project.value.name,
     description: project.value.description || '',
@@ -395,10 +395,10 @@ const closeEditModal = () => {
 
 const submitEdit = async () => {
   if (editSubmitting.value) return
-  
+
   editSubmitting.value = true
   editError.value = null
-  
+
   try {
     // Validate input
     if (!editProjectData.value.name.trim()) {
@@ -406,7 +406,7 @@ const submitEdit = async () => {
       editSubmitting.value = false
       return
     }
-    
+
     // Update project record
     const { error: updateError } = await supabase
       .from(TABLES.PROJECTS)
@@ -417,9 +417,9 @@ const submitEdit = async () => {
         updated_at: new Date().toISOString()
       })
       .eq('id', projectId.value)
-    
+
     if (updateError) throw updateError
-    
+
     // Create project update for the edit
     const updatePayload = {
       project_id: projectId.value,
@@ -428,16 +428,16 @@ const submitEdit = async () => {
       updated_at: new Date().toISOString(),
       user_id: user.value?.id
     }
-    
+
     const { error: updateRecordError } = await supabase
       .from(TABLES.PROJECT_UPDATES)
       .insert(updatePayload)
-    
+
     if (updateRecordError) console.error('Error creating update record:', updateRecordError)
-    
+
     // Refresh project data
     await fetchProject()
-    
+
     // Reset and close modal
     closeEditModal()
   } catch (err) {
@@ -455,11 +455,11 @@ const handleRoleUpdated = async (data) => {
     const collaboratorIndex = project.value.collaborators.findIndex(
       c => c.user_id === data.userId
     )
-    
+
     if (collaboratorIndex !== -1) {
       project.value.collaborators[collaboratorIndex].role = data.newRole
     }
-    
+
     // Create project update for role change
     const collaborator = project.value.collaborators.find(c => c.user_id === data.userId)
     if (collaborator) {
@@ -470,11 +470,11 @@ const handleRoleUpdated = async (data) => {
         updated_at: new Date().toISOString(),
         user_id: user.value?.id
       }
-      
+
       const { error: updateError } = await supabase
         .from(TABLES.PROJECT_UPDATES)
         .insert(updatePayload)
-      
+
       if (updateError) console.error('Error creating update record:', updateError)
     }
   } catch (err) {
@@ -506,16 +506,9 @@ onMounted(() => {
 
     <!-- Pinboard View -->
     <div v-else-if="activeSection === 'pinboard'" class="pinboard-view">
-      <ProjectSideNav
-        :project-name="project.name"
-        :owner="project.owner"
-        :collaborators="project.collaborators"
-        :active-section="activeSection"
-        :project-id="project.id"
-        @section-change="handleSectionChange"
-        @delete-project="openDeleteConfirm"
-        @role-updated="handleRoleUpdated"
-      />
+      <ProjectSideNav :project-name="project.name" :owner="project.owner" :collaborators="project.collaborators"
+        :active-section="activeSection" :project-id="project.id" :project-description="project.description"
+        @section-change="handleSectionChange" @delete-project="openDeleteConfirm" @role-updated="handleRoleUpdated" />
       <div class="pinboard-container">
         <Pinboard :project-id="project.id" />
       </div>
@@ -524,16 +517,9 @@ onMounted(() => {
     <!-- Main Content View -->
     <div v-else class="project-layout">
       <!-- Side Navigation -->
-      <ProjectSideNav
-        :project-name="project.name"
-        :owner="project.owner"
-        :collaborators="project.collaborators"
-        :active-section="activeSection"
-        :project-id="project.id"
-        @section-change="handleSectionChange"
-        @delete-project="openDeleteConfirm"
-        @role-updated="handleRoleUpdated"
-      />
+      <ProjectSideNav :project-name="project.name" :owner="project.owner" :collaborators="project.collaborators"
+        :active-section="activeSection" :project-id="project.id" :project-description="project.description"
+        @section-change="handleSectionChange" @delete-project="openDeleteConfirm" @role-updated="handleRoleUpdated" />
 
       <div class="project-content">
         <!-- Main Content Area -->
@@ -548,27 +534,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Project Info -->
-          <div class="project-info">
-            <!-- Description Card -->
-            <div class="info-card description-card">
-              <h3>About this Project</h3>
-              <p v-if="project.description" class="project-description">
-                {{ project.description }}
-              </p>
-              <p v-else class="text-secondary">
-                No description provided.
-              </p>
-            </div>
-
-            <!-- Todos Card -->
-            <div class="info-card todos-card">
-              <ProjectTodos 
-                :project-id="project.id" 
-                :can-edit="isOwner || userRole === 'admin'" 
-              />
-            </div>
-          </div>
+          <ProjectTodos :project-id="project.id" :can-edit="isOwner || userRole === 'admin'" />
 
           <!-- Dynamic Content Section -->
           <div class="dynamic-content">
@@ -580,14 +546,8 @@ onMounted(() => {
                   + Files
                 </button>
               </div>
-              <FilesGrid
-                :files="project.files || []"
-                :loading="loading"
-                :allow-delete="isOwner"
-                empty-message="No files uploaded yet."
-                @delete="handleFileDeleted"
-                @download="handleFileDownload"
-              />
+              <FilesGrid :files="project.files || []" :loading="loading" :allow-delete="isOwner"
+                empty-message="No files uploaded yet." @delete="handleFileDeleted" @download="handleFileDownload" />
             </div>
 
             <!-- Updates Section -->
@@ -604,11 +564,8 @@ onMounted(() => {
               <div v-else class="updates-list">
                 <div v-for="update in project.updates" :key="update.id" class="update-item">
                   <div class="update-avatar">
-                    <img
-                      v-if="update.user?.avatar_url"
-                      :src="update.user.avatar_url"
-                      :alt="update.user.display_name || 'User Avatar'"
-                    />
+                    <img v-if="update.user?.avatar_url" :src="update.user.avatar_url"
+                      :alt="update.user.display_name || 'User Avatar'" />
                     <span v-else class="avatar-placeholder">
                       {{ update.user?.display_name?.[0] || '?' }}
                     </span>
@@ -638,23 +595,13 @@ onMounted(() => {
         <form @submit.prevent="submitUpdate" class="update-form">
           <div class="form-group">
             <label for="update-description">Description (Optional)</label>
-            <textarea
-              id="update-description"
-              v-model="updateData.description"
-              placeholder="Describe the files you're uploading..."
-              rows="4"
-            ></textarea>
+            <textarea id="update-description" v-model="updateData.description"
+              placeholder="Describe the files you're uploading..." rows="4"></textarea>
           </div>
           <div class="form-group">
             <label>Upload Files</label>
             <div class="file-upload-container">
-              <input
-                type="file"
-                @change="handleFileChange"
-                multiple
-                class="file-input"
-                :disabled="submitting"
-              >
+              <input type="file" @change="handleFileChange" multiple class="file-input" :disabled="submitting">
               <div class="file-upload-box">
                 <span class="upload-icon">📎</span>
                 <span>Drop files here or click to upload</span>
@@ -696,29 +643,17 @@ onMounted(() => {
         <form @submit.prevent="submitEdit" class="edit-form">
           <div class="form-group">
             <label for="project-name">Project Name</label>
-            <input
-              id="project-name"
-              v-model="editProjectData.name"
-              type="text"
-              required
-              placeholder="Enter project name"
-            >
+            <input id="project-name" v-model="editProjectData.name" type="text" required
+              placeholder="Enter project name">
           </div>
           <div class="form-group">
             <label for="project-description">Description</label>
-            <textarea
-              id="project-description"
-              v-model="editProjectData.description"
-              rows="4"
-              placeholder="Describe your project..."
-            ></textarea>
+            <textarea id="project-description" v-model="editProjectData.description" rows="4"
+              placeholder="Describe your project..."></textarea>
           </div>
           <div class="form-group">
             <label class="checkbox-label">
-              <input
-                type="checkbox"
-                v-model="editProjectData.is_public"
-              >
+              <input type="checkbox" v-model="editProjectData.is_public">
               <span>Make this project public</span>
             </label>
             <p class="help-text">Public projects are visible to everyone, even non-members.</p>
@@ -750,14 +685,14 @@ onMounted(() => {
 .project-layout,
 .pinboard-view {
   display: flex;
-  min-height: calc(100vh - 64px);
+  min-height: 100vh;
   width: 100%;
   position: relative;
 }
 
 .pinboard-view {
   position: fixed;
-  top: 64px;
+  top: var(--navbar-height, 72px);
   left: 0;
   right: 0;
   bottom: 0;
@@ -967,7 +902,7 @@ onMounted(() => {
 }
 
 .modal-content {
-  background: var(--gradient-winter);
+  background: black;
   padding: 32px;
   border-radius: 12px;
   width: 100%;
@@ -1147,4 +1082,4 @@ textarea {
     padding: 16px;
   }
 }
-</style> 
+</style>
