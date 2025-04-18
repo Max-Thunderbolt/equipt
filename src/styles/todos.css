@@ -83,29 +83,47 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--color-border);
+  padding: 1rem;
+  background: var(--color-black);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+
+.todo-item:hover {
+  border-color: var(--color-border-hover);
+  transform: translateY(-1px);
 }
 
 .todo-item:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .todo-content {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex: 1;
 }
 
 .todo-item .checkbox {
-  width: 1rem;
-  height: 1rem;
+  width: 1.25rem;
+  height: 1.25rem;
   accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
 .todo-text {
   color: var(--color-text);
   font-weight: 500;
+  line-height: 1.4;
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+  opacity: 0.8;
 }
 
 .todo-item .delete-btn {

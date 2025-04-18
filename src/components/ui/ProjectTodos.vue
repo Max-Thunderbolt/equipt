@@ -496,7 +496,7 @@ const claimTask = async (todo) => {
 }
 
 .modal-content {
-  background: var(--gradient-winter);
+  background: black;
   border-radius: var(--border-radius-large);
   padding: 1.5rem;
   width: 90%;

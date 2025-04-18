@@ -788,7 +788,7 @@ onUnmounted(() => {
 <style scoped>
 .pinboard {
   position: fixed;
-  top: 72px; /* Height of top nav */
+  top: var(--navbar-height, 72px); /* Use the CSS variable */
   left: 280px; /* Width of side nav */
   right: 0;
   bottom: 0;
@@ -796,14 +796,15 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-top: 8px; /* Add top padding to the entire pinboard */
 }
 
 .pinboard-header {
-  flex: 0 0 48px;
+  flex: 0 0 auto; /* Allow natural height instead of fixed */
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 16px 24px;
   background: var(--color-black-90);
   border-bottom: 1px solid var(--color-border);
 }
@@ -845,6 +846,7 @@ onUnmounted(() => {
   gap: 24px;
   align-items: start;
   overflow-y: auto;
+  margin-top: 8px; /* Add space between header and pins */
 }
 
 .pin-card {

@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from './supabase/config'
 import Navigation from './components/layout/Navigation.vue'
+import DefaultLayout from './components/layout/DefaultLayout.vue'
 import Toast from './components/ui/Toast.vue'
 
 const router = useRouter()
@@ -72,9 +73,9 @@ onMounted(async () => {
 <template>
   <div class="app">
     <Navigation />
-    <main class="main-content">
+    <DefaultLayout>
       <router-view />
-    </main>
+    </DefaultLayout>
     <Toast />
   </div>
 </template>
@@ -84,11 +85,6 @@ onMounted(async () => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-.main-content {
-  flex: 1;
-  padding: 2rem 0;
 }
 
 .logo {
