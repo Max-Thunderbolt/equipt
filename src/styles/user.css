@@ -8,46 +8,57 @@
   gap: 1rem;
 }
 
-.user-avatar {
-  width: 48px;
-  height: 48px;
+/* Standard Avatar Style (32x32px) */
+.avatar { /* Renamed from user-avatar and standardized */
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--color-black-30);
+  display: flex; /* Added */
+  align-items: center; /* Added */
+  justify-content: center; /* Added */
+  background: var(--color-black-80); /* Standardized background */
   flex-shrink: 0;
   position: relative;
-  box-shadow: 0 2px 8px var(--color-shadow);
-  border: 2px solid var(--color-border);
+  /* Removed border and box-shadow for the base 32px avatar */
 }
 
-.user-avatar img {
+.avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+/* Standard Avatar Placeholder */
 .avatar-placeholder {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-accent);
+  background: transparent; /* Placeholder background often set by parent .avatar */
+  color: var(--color-text); /* Standardized color */
+  font-weight: 500; /* Standardized weight */
+  font-size: 14px; /* Standardized size for 32px avatar */
+  /* Removed text-shadow and specific background from global placeholder */
+}
+
+/* Larger avatar modifier (e.g., 48px) - can be used like <div class="avatar large"> */
+.avatar.large {
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--color-border); /* Added back border for larger ones */
+  box-shadow: 0 2px 8px var(--color-shadow); /* Added back shadow */
+}
+
+.avatar.large .avatar-placeholder {
+  font-size: 1.25rem; /* Larger font for larger avatar */
+  font-weight: 600; /* Optionally bolder */
+  background: var(--color-accent); /* Restore specific background for large */
   color: var(--color-white);
-  font-weight: 500;
-  font-size: 1.25rem;
-  text-shadow: 0 1px 2px var(--color-shadow);
 }
 
-.user-avatar.small {
-  width: 40px;
-  height: 40px;
-  border-width: 1px;
-}
-
-.user-avatar.small .avatar-placeholder {
-  font-size: 1rem;
-}
+/* Original .user-avatar.small is removed as .avatar is now 32px base */
 
 .user-details {
   display: flex;

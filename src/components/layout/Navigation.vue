@@ -6,6 +6,7 @@ import { useProjects } from '../../composables/useProjects'
 import NewProjectModal from '../modals/NewProjectModal.vue'
 import AuthModal from '../modals/AuthModal.vue'
 import { supabase } from '../../supabase/config'
+import ProjectInvites from '../project/ProjectInvites.vue'
 
 const { user, session } = useAuth()
 const { profile, fetchProfile } = useProfile()
@@ -44,6 +45,7 @@ const navigationItems = ref([
     dropdown: [
       { name: 'New Project', action: () => isNewProjectModalOpen.value = true, isPrimaryAction: true },
       { name: 'My Projects', path: '/projects' },
+      { name: 'Pending Invites', component: 'ProjectInvites' },
       { name: 'Files', path: '/files' }
     ]
   },
@@ -166,12 +168,15 @@ const handleLogout = async () => {
           class="nav-item-container"
           @click.stop="toggleDropdown(item.name)"
         >
-          <div class="nav-item" :class="{ 'active': activeDropdown === item.name }">
+          <div 
+            class="nav-item" 
+            :class="{ 'has-dropdown': item.dropdown && item.dropdown.length }"
+          >
             {{ item.name }}
             <span class="dropdown-arrow" v-if="item.dropdown && item.dropdown.length">▼</span>
           </div>
           
-          <!-- Dropdown menu -->
+          <!-- Desktop dropdown menu -->
           <div 
             v-if="item.dropdown && item.dropdown.length" 
             class="dropdown-menu"
@@ -194,6 +199,12 @@ const handleLogout = async () => {
               >
                 {{ dropdownItem.name }}
               </button>
+              <div 
+                v-else-if="dropdownItem.component === 'ProjectInvites'"
+                class="dropdown-invites"
+              >
+                <ProjectInvites />
+              </div>
             </template>
           </div>
         </div>
@@ -388,78 +399,6 @@ const handleLogout = async () => {
   transform: rotate(180deg);
 }
 
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  left: 50%;
-  transform: translateX(-50%) translateY(10px);
-  background: var(--color-black);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  min-width: 180px;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s ease;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  padding: 0.5rem 0;
-}
-
-.dropdown-menu::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%) rotate(45deg);
-  width: 12px;
-  height: 12px;
-  background: var(--color-black);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dropdown-menu.show {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-}
-
-.dropdown-item {
-  display: block;
-  padding: 0.75rem 1.5rem;
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  transition: background-color 0.2s ease, color 0.2s ease;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  font-size: 0.9rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.dropdown-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--color-text);
-}
-
-.dropdown-item-primary {
-  background-color: var(--color-equipt-orange);
-  color: white;
-  font-weight: 500;
-}
-
-.dropdown-item-primary:hover {
-  background-color: var(--color-equipt-orange-90);
-  color: white;
-}
-
-.profile-dropdown {
-  right: 0;
-  left: auto;
-}
-
 .nav-actions {
   flex: 0 0 auto;
   display: flex;
@@ -481,34 +420,6 @@ const handleLogout = async () => {
 
 .user-profile:hover {
   background-color: rgba(255, 255, 255, 0.1);
-}
-
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--color-black-30);
-  flex-shrink: 0;
-}
-
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-equipt-orange);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  flex-shrink: 0;
 }
 
 .user-name {
@@ -734,5 +645,17 @@ const handleLogout = async () => {
   .mobile-menu-btn {
     display: none;
   }
+}
+
+.dropdown-invites {
+  max-height: 400px;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.dropdown-menu {
+  min-width: 240px;
 }
 </style>
