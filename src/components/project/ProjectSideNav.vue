@@ -2,7 +2,7 @@
   <nav class="project-side-nav">
     <div class="nav-section">
       <div class="nav-header">
-        <router-link :to="{ name: 'projects' }" class="back-link">
+        <router-link :to="{ name: 'Projects' }" class="back-link">
           ← Back to Projects
         </router-link>
         <h1 class="project-name">{{ projectName }}</h1>
