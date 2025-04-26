@@ -17,23 +17,65 @@ export function useProjectInvites() {
         .from(TABLES.PROJECT_INVITES)
         .select(`
           *,
-          invited_user:invited_user_id (
-            id,
-            display_name,
-            email,
-            avatar_url
-          ),
-          invited_by_user:invited_by (
-            id,
-            display_name,
-            email,
-            avatar_url
-          )
+          invited_user_id,
+          invited_by
         `)
         .eq('project_id', projectId)
         .eq('status', 'pending')
       
       if (fetchError) throw fetchError
+      
+      // If we have data, fetch the user details
+      if (data && data.length > 0) {
+        // Get unique user IDs (both invited users and inviters)
+        const invitedUserIds = [...new Set(data.map(invite => invite.invited_user_id).filter(Boolean))];
+        const inviterIds = [...new Set(data.map(invite => invite.invited_by).filter(Boolean))];
+        
+        // Fetch invited user details from profiles table
+        const { data: invitedUserData, error: invitedUserError } = await supabase
+          .from('profiles')
+          .select('id, display_name, email, avatar_url, bio, created_at, updated_at')
+          .in('id', invitedUserIds);
+          
+        if (invitedUserError) {
+          console.error('Error fetching invited user details:', invitedUserError);
+        }
+        
+        // Fetch inviter details from profiles table
+        const { data: inviterData, error: inviterError } = await supabase
+          .from('profiles')
+          .select('id, display_name, email, avatar_url, bio, created_at, updated_at')
+          .in('id', inviterIds);
+          
+        if (inviterError) {
+          console.error('Error fetching inviter details:', inviterError);
+        }
+        
+        // Create maps for user details
+        const invitedUserMap = {};
+        if (invitedUserData) {
+          invitedUserData.forEach(user => {
+            invitedUserMap[user.id] = user;
+          });
+        }
+        
+        const inviterMap = {};
+        if (inviterData) {
+          inviterData.forEach(user => {
+            inviterMap[user.id] = user;
+          });
+        }
+        
+        // Attach user details to each invite
+        data.forEach(invite => {
+          if (invite.invited_user_id) {
+            invite.invited_user = invitedUserMap[invite.invited_user_id] || null;
+          }
+          if (invite.invited_by) {
+            invite.invited_by_user = inviterMap[invite.invited_by] || null;
+          }
+        });
+      }
       
       invites.value = data || []
     } catch (err) {
@@ -48,22 +90,22 @@ export function useProjectInvites() {
 const fetchUserInvites = async () => {
     loading.value = true
     error.value = null
-    console.log('fetchUserInvites: Starting fetch...'); // <--- Add log
+    console.log('fetchUserInvites: Starting fetch...');
   
     try {
-      const { data: { user }, error: getUserError } = await supabase.auth.getUser(); // <--- Capture potential getUserError
+      const { data: { user }, error: getUserError } = await supabase.auth.getUser();
   
-      if (getUserError) { // <--- Log and handle getUserError
+      if (getUserError) {
         console.error('fetchUserInvites: Error getting user:', getUserError);
         throw getUserError;
       }
   
       if (!user) {
-        console.log('fetchUserInvites: No authenticated user found.'); // <--- Existing log
-        invites.value = []; // Ensure invites are cleared if no user
-        return; // Exit early if no user
+        console.log('fetchUserInvites: No authenticated user found.');
+        invites.value = [];
+        return;
       }
-      console.log('fetchUserInvites: Fetching invites for user ID:', user.id); // <--- Existing log
+      console.log('fetchUserInvites: Fetching invites for user ID:', user.id);
   
       const { data, error: fetchError } = await supabase
         .from(TABLES.PROJECT_INVITES)
@@ -73,38 +115,79 @@ const fetchUserInvites = async () => {
             id,
             name,
             description,
-            owner:owner_id (
-              id,
-              display_name,
-              email,
-              avatar_url
-            )
-          ),
-          invited_by_user:invited_by (
-            id,
-            display_name,
-            email,
-            avatar_url
+            owner_id
           )
         `)
         .eq('invited_user_id', user.id)
         .eq('status', 'pending')
   
       if (fetchError) {
-        console.error('fetchUserInvites: Error fetching invite data:', fetchError); // <--- Existing log
+        console.error('fetchUserInvites: Error fetching invite data:', fetchError);
         throw fetchError;
       }
   
-      console.log('fetchUserInvites: Raw data received:', data); // <--- Existing log
+      // If we have data, fetch the owner and inviter details
+      if (data && data.length > 0) {
+        // Get unique owner IDs and inviter IDs
+        const ownerIds = [...new Set(data.map(invite => invite.project?.owner_id).filter(Boolean))];
+        const inviterIds = [...new Set(data.map(invite => invite.invited_by).filter(Boolean))];
+        
+        // Fetch owner details from profiles table
+        const { data: ownerData, error: ownerError } = await supabase
+          .from('profiles')
+          .select('id, display_name, email, avatar_url, bio, created_at, updated_at')
+          .in('id', ownerIds);
+          
+        if (ownerError) {
+          console.error('Error fetching owner details:', ownerError);
+        }
+        
+        // Fetch inviter details from profiles table
+        const { data: inviterData, error: inviterError } = await supabase
+          .from('profiles')
+          .select('id, display_name, email, avatar_url, bio, created_at, updated_at')
+          .in('id', inviterIds);
+          
+        if (inviterError) {
+          console.error('Error fetching inviter details:', inviterError);
+        }
+        
+        // Create maps for owner and inviter details
+        const ownerMap = {};
+        if (ownerData) {
+          ownerData.forEach(owner => {
+            ownerMap[owner.id] = owner;
+          });
+        }
+        
+        const inviterMap = {};
+        if (inviterData) {
+          inviterData.forEach(inviter => {
+            inviterMap[inviter.id] = inviter;
+          });
+        }
+        
+        // Attach owner and inviter details to each invite
+        data.forEach(invite => {
+          if (invite.project && invite.project.owner_id) {
+            invite.project.owner = ownerMap[invite.project.owner_id] || null;
+          }
+          if (invite.invited_by) {
+            invite.invited_by_user = inviterMap[invite.invited_by] || null;
+          }
+        });
+      }
+  
+      console.log('fetchUserInvites: Raw data received:', data);
       invites.value = data || []
-      console.log('fetchUserInvites: Invites state updated:', invites.value); // <--- Existing log
+      console.log('fetchUserInvites: Invites state updated:', invites.value);
   
     } catch (err) {
-      console.error('Error fetching user invites:', err) // <--- Existing log
-      error.value = err.message || 'Failed to fetch invites'; // Provide default error message
+      console.error('Error fetching user invites:', err)
+      error.value = err.message || 'Failed to fetch invites';
     } finally {
       loading.value = false
-      console.log('fetchUserInvites: Fetch finished.'); // <--- Add log
+      console.log('fetchUserInvites: Fetch finished.');
     }
   }
 
@@ -117,6 +200,37 @@ const fetchUserInvites = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No authenticated user')
 
+      // Check for existing pending invite
+      const { data: existingInvites, error: checkError } = await supabase
+        .from(TABLES.PROJECT_INVITES)
+        .select('id, status')
+        .eq('project_id', projectId)
+        .eq('invited_user_id', invitedUserId)
+        // Optionally, only prevent if invite is 'pending'
+        // .eq('status', 'pending') 
+      
+      if (checkError) {
+        console.error('Error checking for existing invites:', checkError)
+        throw checkError // Rethrow the error to be caught below
+      }
+
+      if (existingInvites && existingInvites.length > 0) {
+        // Check if any of the existing invites are pending
+        const pendingInvite = existingInvites.find(invite => invite.status === 'pending');
+        if (pendingInvite) {
+          console.warn(`Pending invite already exists for user ${invitedUserId} in project ${projectId}`);
+          throw new Error('An invitation for this user is already pending.')
+        } 
+        // You could add logic here to handle non-pending invites, e.g., re-inviting if declined
+        // For now, we just prevent duplicates if *any* invite exists, 
+        // but prioritizing the 'pending' check.
+        if (!pendingInvite && existingInvites.length > 0) {
+           console.warn(`Invite already exists (status not pending) for user ${invitedUserId} in project ${projectId}`);
+           throw new Error('An invitation for this user already exists.')
+        }
+      }
+
+      // No existing invite found, proceed with insertion
       const { data, error: createError } = await supabase
         .from(TABLES.PROJECT_INVITES)
         .insert({

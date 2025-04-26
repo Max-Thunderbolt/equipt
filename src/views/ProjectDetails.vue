@@ -41,7 +41,7 @@ const projectId = ref('')
 const project = ref(null)
 const loading = ref(true)
 const error = ref(null)
-const activeSection = ref('files')
+const activeSection = ref('tasks')
 
 // Update modal state
 const isUpdateModalOpen = ref(false)
@@ -62,18 +62,10 @@ const editProjectData = ref({
 const editSubmitting = ref(false)
 const editError = ref(null)
 
-// Delete confirmation dialog state
-const isDeleteConfirmOpen = ref(false)
+// Delete project modal state
+const isDeleteModalOpen = ref(false)
 const deleteSubmitting = ref(false)
 const deleteError = ref(null)
-
-// Add these variables to manage the collaborator removal confirmation
-const isRemoveCollabConfirmOpen = ref(false)
-const selectedCollaboratorToRemove = ref(null)
-
-// Add these variables to track loading states
-const updatingRoleFor = ref(null)
-const removingCollaborator = ref(false)
 
 // Add file handling state
 const selectedFiles = ref([])
@@ -367,8 +359,48 @@ const handleFileDeleted = async (file) => {
   }
 }
 
-const handleSectionChange = (section) => {
+const handleSectionChange = async (section) => {
   activeSection.value = section
+  
+  // Fetch updates from the database when switching to the updates section
+  if (section === 'updates') {
+    try {
+      // Get project updates
+      const { data: updates, error: updatesError } = await supabase
+        .from(TABLES.PROJECT_UPDATES)
+        .select('*')
+        .eq('project_id', projectId.value)
+        .order('created_at', { ascending: false })
+
+      if (updatesError) {
+        console.error('Error fetching project updates:', updatesError)
+      } else if (updates && updates.length > 0) {
+        // Get user profiles for each update
+        const userIds = [...new Set(updates.map(update => update.user_id))]
+
+        const { data: userProfiles, error: profilesError } = await supabase
+          .from(TABLES.PROFILES)
+          .select('id, display_name, avatar_url')
+          .in('id', userIds)
+
+        if (profilesError) {
+          console.error('Error fetching user profiles:', profilesError)
+        } else {
+          // Combine updates with user profiles
+          updates.forEach(update => {
+            update.user = userProfiles.find(profile => profile.id === update.user_id) || null
+          })
+        }
+
+        // Update the project updates in the reactive state
+        project.value.updates = updates
+      } else {
+        project.value.updates = []
+      }
+    } catch (err) {
+      console.error('Error refreshing project updates:', err)
+    }
+  }
 }
 
 // Edit project functions
@@ -390,6 +422,57 @@ const closeEditModal = () => {
     name: '',
     description: '',
     is_public: false
+  }
+}
+
+// Open delete confirmation modal
+const openDeleteConfirm = () => {
+  isDeleteModalOpen.value = true
+  deleteError.value = null
+}
+
+// Close delete confirmation modal
+const closeDeleteModal = () => {
+  isDeleteModalOpen.value = false
+}
+
+// Delete project
+const deleteProject = async () => {
+  if (deleteSubmitting.value) return
+  
+  deleteSubmitting.value = true
+  deleteError.value = null
+  
+  try {
+    // Delete project files from storage
+    if (project.value.files && project.value.files.length > 0) {
+      for (const file of project.value.files) {
+        if (file.file_path) {
+          try {
+            await deleteFile(file.file_path, file.id)
+          } catch (fileErr) {
+            console.error(`Error deleting file ${file.name}:`, fileErr)
+            // Continue with other files
+          }
+        }
+      }
+    }
+    
+    // Delete project record
+    const { error: deleteError } = await supabase
+      .from(TABLES.PROJECTS)
+      .delete()
+      .eq('id', projectId.value)
+    
+    if (deleteError) throw deleteError
+    
+    // Redirect to projects page
+    router.push('/projects')
+  } catch (err) {
+    console.error('Error deleting project:', err)
+    deleteError.value = `Failed to delete project: ${err.message || 'Unknown error'}`
+  } finally {
+    deleteSubmitting.value = false
   }
 }
 
@@ -534,8 +617,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <ProjectTodos :project-id="project.id" :can-edit="isOwner || userRole === 'admin'" />
-
           <!-- Dynamic Content Section -->
           <div class="dynamic-content">
             <!-- Files Section -->
@@ -579,6 +660,14 @@ onMounted(() => {
                   </div>
                 </div>
               </div>
+            </div>
+            
+            <!-- Tasks Section -->
+            <div v-if="activeSection === 'tasks'" class="content-section">
+              <div class="section-header">
+                <h2>Tasks</h2>
+              </div>
+              <ProjectTodos :project-id="project.id" :can-edit="isOwner || userRole === 'admin'" />
             </div>
           </div>
         </main>
@@ -668,6 +757,25 @@ onMounted(() => {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="isDeleteModalOpen" class="modal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>Delete Project</h2>
+          <button class="close-button" @click="closeDeleteModal">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete this project? This action cannot be undone.</p>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" @click="closeDeleteModal">Cancel</button>
+          <button type="button" class="btn btn-danger" @click="deleteProject" :disabled="deleteSubmitting">
+            {{ deleteSubmitting ? 'Deleting...' : 'Delete Project' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -1069,6 +1177,22 @@ textarea {
   color: var(--color-text-secondary);
   margin-top: 4px;
   margin-left: 24px;
+}
+
+/* Delete button styles */
+.btn-danger {
+  background-color: var(--color-danger, #dc3545);
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover {
+  background-color: var(--color-danger-dark, #c82333);
+}
+
+.btn-danger:disabled {
+  background-color: var(--color-danger-light, #e4606d);
+  cursor: not-allowed;
 }
 
 /* Responsive Design */

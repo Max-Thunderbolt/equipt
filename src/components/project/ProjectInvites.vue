@@ -7,6 +7,7 @@
       {{ error }}
     </div>
     <div v-else-if="invites.length === 0" class="no-invites">
+      <div class="empty-icon">📭</div>
       No pending invites
     </div>
     <div v-else class="invites-list">
@@ -41,18 +42,20 @@
             
             <div class="invite-actions">
               <button 
-                class="btn-primary"
+                class="btn btn-primary"
                 @click="acceptInvite(invite.id)"
                 :disabled="processingInvite === invite.id"
               >
-                Accept
+                <span v-if="processingInvite === invite.id" class="spinner" aria-label="Processing">⏳</span>
+                <span v-else>Accept</span>
               </button>
               <button 
-                class="btn-secondary"
+                class="btn btn-secondary"
                 @click="declineInvite(invite.id)"
                 :disabled="processingInvite === invite.id"
               >
-                Decline
+                <span v-if="processingInvite === invite.id" class="spinner" aria-label="Processing">⏳</span>
+                <span v-else>Deny</span>
               </button>
             </div>
           </div>
@@ -63,59 +66,42 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import { useProjectInvites } from '../../composables/useProjectInvites'
+import { ref, defineProps, defineEmits } from 'vue'
 import { useRouter } from 'vue-router'
 
+const props = defineProps({
+  invites: { type: Array, default: () => [] },
+  loading: { type: Boolean, default: false },
+  error: { type: String, default: '' }
+})
+const emit = defineEmits(['accept', 'decline'])
 const router = useRouter()
-const { 
-  invites, 
-  loading, 
-  error, 
-  fetchUserInvites, 
-  acceptInvite: acceptInviteAction, 
-  declineInvite: declineInviteAction 
-} = useProjectInvites()
-
 const processingInvite = ref(null)
 
 // Accept an invite
 const acceptInvite = async (inviteId) => {
   if (processingInvite.value) return
-  
   processingInvite.value = inviteId
-  
-  try {
-    const success = await acceptInviteAction(inviteId)
-    if (success) {
-      // Find the project ID from the invite
-      const invite = invites.value.find(i => i.id === inviteId)
-      if (invite) {
-        // Navigate to the project
-        router.push(`/projects/${invite.project_id}`)
-      }
+  emit('accept', inviteId, () => {
+    // Find the project ID from the invite
+    const invite = props.invites.find(i => i.id === inviteId)
+    if (invite) {
+      router.push(`/projects/${invite.project_id}`)
     }
-  } finally {
     processingInvite.value = null
-  }
+  }, () => {
+    processingInvite.value = null
+  })
 }
 
 // Decline an invite
 const declineInvite = async (inviteId) => {
   if (processingInvite.value) return
-  
   processingInvite.value = inviteId
-  
-  try {
-    await declineInviteAction(inviteId)
-  } finally {
+  emit('decline', inviteId, () => {
     processingInvite.value = null
-  }
+  })
 }
-
-onMounted(() => {
-  fetchUserInvites()
-})
 </script>
 
 <style scoped>
@@ -131,6 +117,12 @@ onMounted(() => {
 
 .error {
   color: var(--color-danger);
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.6;
 }
 
 .invites-list {
@@ -206,5 +198,49 @@ onMounted(() => {
 .invite-actions {
   display: flex;
   gap: 0.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  border-radius: var(--border-radius-small);
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-primary:disabled {
+  background: var(--color-primary-80);
+  color: #fff;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.btn-secondary {
+  background: var(--color-black-80);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:disabled {
+  background: var(--color-black-70);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.spinner {
+  font-size: 1.1em;
+  vertical-align: middle;
+  margin-right: 0.25em;
 }
 </style> 

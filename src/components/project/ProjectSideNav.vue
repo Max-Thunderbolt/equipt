@@ -42,6 +42,17 @@
 
         <button 
           class="nav-item"
+          :class="{ active: activeSection === 'tasks' }"
+          @click="$emit('section-change', 'tasks')"
+        >
+          <span class="icon">✅</span>
+          <span>Tasks</span>
+          <span class="toggle" v-if="activeSection === 'tasks'">−</span>
+          <span class="toggle" v-else>+</span>
+        </button>
+
+        <button 
+          class="nav-item"
           :class="{ active: activeSection === 'files' }"
           @click="$emit('section-change', 'files')"
         >
