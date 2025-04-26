@@ -187,6 +187,39 @@ export interface Database {
           update_id?: string | null
         }
       }
+
+      project_invites: {
+        Row: {
+          id: string // uuid
+          project_id: string // uuid, FK to projects.id
+          invited_by: string // uuid, FK to auth.users.id
+          invited_user_id: string // uuid, FK to auth.users.id
+          role: string // text
+          status: string // text
+          created_at: string | null // timestamptz
+          updated_at: string | null // timestamptz
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          invited_by: string
+          invited_user_id: string
+          role: string
+          status?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          invited_by?: string
+          invited_user_id?: string
+          role?: string
+          status?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never

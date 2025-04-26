@@ -42,6 +42,17 @@
 
         <button 
           class="nav-item"
+          :class="{ active: activeSection === 'tasks' }"
+          @click="$emit('section-change', 'tasks')"
+        >
+          <span class="icon">✅</span>
+          <span>Tasks</span>
+          <span class="toggle" v-if="activeSection === 'tasks'">−</span>
+          <span class="toggle" v-else>+</span>
+        </button>
+
+        <button 
+          class="nav-item"
           :class="{ active: activeSection === 'files' }"
           @click="$emit('section-change', 'files')"
         >
@@ -69,7 +80,7 @@
       <div class="team-section">
         <!-- Project Owner -->
         <div class="team-member owner">
-          <div class="member-avatar">
+          <div class="avatar">
             <img 
               v-if="owner?.avatar_url" 
               :src="owner.avatar_url" 
@@ -92,7 +103,7 @@
           :key="collab.user_id" 
           class="team-member"
         >
-          <div class="member-avatar">
+          <div class="avatar">
             <img 
               v-if="collab.user?.avatar_url" 
               :src="collab.user.avatar_url" 
@@ -117,6 +128,16 @@
             <span class="icon">👤</span>
           </button>
         </div>
+
+        <!-- Invite Collaborator Button -->
+        <button 
+          v-if="canManageRoles"
+          class="invite-collaborator-btn"
+          @click="openInviteModal"
+        >
+          <span class="icon">+</span>
+          <span>Invite Collaborator</span>
+        </button>
       </div>
     </div>
 
@@ -200,12 +221,122 @@
         </div>
       </div>
     </div>
+
+    <!-- Invite Collaborator Modal -->
+    <div v-if="showInviteModal" class="modal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Invite Collaborator</h3>
+          <button class="close-button" @click="closeInviteModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="search-section">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search users..."
+              class="search-input"
+              @input="handleSearch"
+            />
+            <div v-if="showSearchResults" class="search-results">
+              <div
+                v-for="user in searchResults"
+                :key="user.id"
+                class="search-result-item"
+                @click="selectUser(user)"
+              >
+                <div class="user-avatar">
+                  <img
+                    v-if="user.avatar_url"
+                    :src="user.avatar_url"
+                    :alt="user.display_name"
+                    referrerpolicy="no-referrer"
+                  />
+                  <span v-else class="avatar-placeholder">
+                    {{ user.display_name?.[0] || '?' }}
+                  </span>
+                </div>
+                <div class="user-info">
+                  <div class="user-name">{{ user.display_name }}</div>
+                  <div class="user-email">{{ user.email }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="selectedUser" class="selected-user">
+            <div class="user-avatar">
+              <img
+                v-if="selectedUser.avatar_url"
+                :src="selectedUser.avatar_url"
+                :alt="selectedUser.display_name"
+                referrerpolicy="no-referrer"
+              />
+              <span v-else class="avatar-placeholder">
+                {{ selectedUser.display_name?.[0] || '?' }}
+              </span>
+            </div>
+            <div class="user-info">
+              <div class="user-name">{{ selectedUser.display_name }}</div>
+              <div class="user-email">{{ selectedUser.email }}</div>
+            </div>
+            <button class="remove-selection" @click="selectedUser = null">×</button>
+          </div>
+
+          <div class="role-selector">
+            <label>Select role:</label>
+            <div class="role-options">
+              <label class="role-option">
+                <input 
+                  type="radio" 
+                  v-model="selectedRole" 
+                  value="viewer"
+                >
+                <span>Viewer</span>
+                <span class="role-description">Can view project content</span>
+              </label>
+              <label class="role-option">
+                <input 
+                  type="radio" 
+                  v-model="selectedRole" 
+                  value="editor"
+                >
+                <span>Editor</span>
+                <span class="role-description">Can edit project content</span>
+              </label>
+              <label class="role-option">
+                <input 
+                  type="radio" 
+                  v-model="selectedRole" 
+                  value="admin"
+                >
+                <span>Admin</span>
+                <span class="role-description">Can manage collaborators</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn-secondary" @click="closeInviteModal">Cancel</button>
+            <button 
+              class="btn-primary" 
+              @click="sendInvite"
+              :disabled="!selectedUser || !selectedRole || sendingInvite"
+            >
+              Send Invite
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </nav>
 </template>
 
 <script setup>
 import { defineProps, defineEmits, computed, ref } from 'vue'
 import { useAuth } from '../../composables/useAuth'
+import { useUserSearch } from '../../composables/useUserSearch'
+import { useProjectInvites } from '../../composables/useProjectInvites'
 import { supabase } from '../../supabase/config'
 
 const props = defineProps({
@@ -306,6 +437,87 @@ const updateRole = async () => {
     console.error('Error updating role:', error)
   } finally {
     updatingRole.value = false
+  }
+}
+
+// Invite modal state
+const showInviteModal = ref(false)
+const selectedUser = ref(null)
+const selectedRole = ref('viewer')
+const sendingInvite = ref(false)
+
+// User search
+const { searchResults, loading: searchLoading, searchUsers } = useUserSearch()
+const searchQuery = ref('')
+const showSearchResults = ref(false)
+
+// Project invites
+const { createInvite } = useProjectInvites()
+
+// Handle user search
+const handleSearch = async () => {
+  if (searchQuery.value.length < 2) {
+    showSearchResults.value = false
+    return
+  }
+  
+  await searchUsers(searchQuery.value)
+  showSearchResults.value = true
+}
+
+// Select user from search results
+const selectUser = (user) => {
+  selectedUser.value = user
+  searchQuery.value = ''
+  showSearchResults.value = false
+}
+
+// Open invite modal
+const openInviteModal = () => {
+  showInviteModal.value = true
+}
+
+// Close invite modal
+const closeInviteModal = () => {
+  showInviteModal.value = false
+  selectedUser.value = null
+  selectedRole.value = 'viewer'
+  searchQuery.value = ''
+  showSearchResults.value = false
+}
+
+// Send invite
+const sendInvite = async () => {
+  if (!selectedUser.value || !selectedRole.value || sendingInvite.value) return
+  
+  sendingInvite.value = true
+  
+  try {
+    const invite = await createInvite(props.projectId, selectedUser.value.id, selectedRole.value)
+    
+    if (invite) {
+      // Create project update for invite
+      const updatePayload = {
+        project_id: props.projectId,
+        description: `Invited ${selectedUser.value.display_name} as ${selectedRole.value}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user_id: user.value?.id
+      }
+
+      const { error: updateError } = await supabase
+        .from('project_updates')
+        .insert(updatePayload)
+
+      if (updateError) console.error('Error creating update record:', updateError)
+      
+      // Close modal
+      closeInviteModal()
+    }
+  } catch (err) {
+    console.error('Error sending invite:', err)
+  } finally {
+    sendingInvite.value = false
   }
 }
 
@@ -434,7 +646,7 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
   background: var(--color-black-90);
 }
 
-.member-avatar {
+.avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -446,16 +658,10 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
   flex-shrink: 0;
 }
 
-.member-avatar img {
+.avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.avatar-placeholder {
-  color: var(--color-text);
-  font-size: 14px;
-  font-weight: 500;
 }
 
 .member-info {
@@ -516,52 +722,15 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
 }
 
 /* Modal styles */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
+/* .modal { ... }
+.modal-content { ... }
+.modal-header { ... }
+.modal-header h3 { ... }
+.close-button { ... }
+.close-button:hover { ... }
+.modal-body { ... } */
 
-.modal-content {
-  background: var(--gradient-winter);
-  border-radius: var(--border-radius-large);
-  padding: 1.5rem;
-  width: 90%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  padding: 0.25rem;
-  line-height: 1;
-}
-
-.close-button:hover {
-  color: var(--color-text);
-}
-
+/* Keep selected-user styles scoped for now as they are specific */
 .selected-user {
   display: flex;
   align-items: center;
@@ -572,6 +741,7 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
   margin-bottom: 1.5rem;
 }
 
+/* Keep user-avatar specific styles scoped for now */
 .user-avatar {
   width: 48px;
   height: 48px;
@@ -649,45 +819,9 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
   color: var(--color-text-secondary);
 }
 
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
+/* Modal actions moved to layout.css */
 
-.btn-primary, .btn-secondary {
-  padding: 0.5rem 1rem;
-  border-radius: var(--border-radius);
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-primary {
-  background: var(--color-primary);
-  color: white;
-  border: none;
-}
-
-.btn-primary:hover {
-  background: var(--color-primary-hover);
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: var(--color-black-90);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-}
-
-.btn-secondary:hover {
-  background: var(--color-black-80);
-}
+/* Base Button Styles moved to forms.css */
 
 .project-description-container {
   margin-top: 8px;
@@ -737,5 +871,93 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
 .no-description {
   color: var(--color-text-secondary);
   font-style: italic;
+}
+
+.invite-collaborator-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-black-90);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.invite-collaborator-btn:hover {
+  background: var(--color-black-85);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
+.invite-collaborator-btn .icon {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.search-section {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  background: var(--color-black-90);
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--color-black-95);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  margin-top: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.search-result-item:hover {
+  background: var(--color-black-90);
+}
+
+.remove-selection {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  margin-left: auto;
+}
+
+.remove-selection:hover {
+  color: var(--color-text);
 }
 </style> 

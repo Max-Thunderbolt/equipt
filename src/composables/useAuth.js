@@ -72,25 +72,46 @@ const initAuth = async () => {
 // Handle visibility change to refresh session when user returns to the page
 const handleVisibilityChange = async () => {
   if (document.visibilityState === 'visible') {
-    console.log('Page became visible, refreshing session...')
+    console.log('Page became visible, checking session...')
     try {
-      // Force a session refresh
-      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
+      // First check if we have a valid session
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
       
-      if (refreshError) {
-        console.error('Error refreshing session:', refreshError)
+      if (!currentSession) {
+        console.log('No active session found')
         return
       }
-      
-      if (refreshedSession) {
-        console.log('Session refreshed successfully')
-        session.value = refreshedSession
-        user.value = refreshedSession.user
+
+      // Check if the session is close to expiring (within 5 minutes)
+      const expiresAt = new Date(currentSession.expires_at * 1000)
+      const now = new Date()
+      const fiveMinutes = 5 * 60 * 1000
+
+      if (expiresAt.getTime() - now.getTime() < fiveMinutes) {
+        console.log('Session close to expiring, refreshing...')
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
+        
+        if (refreshError) {
+          console.error('Error refreshing session:', refreshError)
+          // If refresh fails, we should clear the session to prevent stuck state
+          session.value = null
+          user.value = null
+          return
+        }
+        
+        if (refreshedSession) {
+          console.log('Session refreshed successfully')
+          session.value = refreshedSession
+          user.value = refreshedSession.user
+        }
       } else {
-        console.log('No session found after refresh')
+        console.log('Session still valid, no refresh needed')
       }
     } catch (error) {
       console.error('Error in handleVisibilityChange:', error)
+      // On error, clear the session to prevent stuck state
+      session.value = null
+      user.value = null
     }
   }
 }

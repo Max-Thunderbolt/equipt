@@ -3,13 +3,23 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useAuth } from '../../composables/useAuth'
 import { useProfile } from '../../composables/useProfile'
 import { useProjects } from '../../composables/useProjects'
+import { useProjectInvites } from '../../composables/useProjectInvites'
 import NewProjectModal from '../modals/NewProjectModal.vue'
 import AuthModal from '../modals/AuthModal.vue'
+import ProjectInvites from '../project/ProjectInvites.vue'
 import { supabase } from '../../supabase/config'
 
 const { user, session } = useAuth()
 const { profile, fetchProfile } = useProfile()
 const { createProject, loading: projectLoading, error: projectError } = useProjects()
+const { 
+  invites: userInvites, 
+  loading: invitesLoading, 
+  error: invitesError, 
+  fetchUserInvites,
+  acceptInvite,
+  declineInvite
+} = useProjectInvites()
 
 // Mobile menu state
 const isMobileMenuOpen = ref(false)
@@ -22,50 +32,59 @@ const closeMobileMenu = () => {
   isMobileMenuOpen.value = false
 }
 
-// Watch for user changes to fetch profile
+// Watch for user changes to fetch profile AND invites
 watch(() => user.value?.id, async (newUserId) => {
   if (newUserId) {
-    await fetchProfile()
+    console.log('User changed, fetching profile and invites for:', newUserId)
+    await Promise.all([
+      fetchProfile(),
+      fetchUserInvites()
+    ])
+  } else {
+    // Clear invites if user logs out
+    userInvites.value = [] 
   }
 }, { immediate: true })
 
-// Initialize auth state
+// Initialize auth state and fetch initial data if session exists
 onMounted(async () => {
   const { data: { session: currentSession } } = await supabase.auth.getSession()
   if (currentSession?.user) {
-    await fetchProfile()
+    console.log('Initial session found on mount, fetching profile and invites')
+    await Promise.all([
+      fetchProfile(),
+      fetchUserInvites()
+    ])
+  } else {
+    console.log('No initial session found on mount')
   }
 }) 
 
 const navigationItems = ref([
   { 
     name: 'Projects', 
-    path: '/projects',
+    requiresAuth: true,
     dropdown: [
       { name: 'New Project', action: () => isNewProjectModalOpen.value = true, isPrimaryAction: true },
-      { name: 'My Projects', path: '/projects' },
-      { name: 'Files', path: '/files' }
+      { name: 'My Projects', path: '/projects', requiresAuth: true },
+      { name: 'Files', path: '/files', requiresAuth: true }
     ]
   },
   { 
     name: 'Explore', 
-    path: '/explore',
-    dropdown: [] // Empty for now
+    path: '/explore'
   }
 ])
 
-// Add computed property to determine navigation items based on auth state
+// Filter navigation items based on auth state
 const displayNavItems = computed(() => {
-  // Basic navigation items for everyone
-  const items = [...navigationItems.value]
-  
-  // Filter out the Profile item if it exists (we handle it separately)
-  const filteredItems = items.filter(item => item.name !== 'Profile')
-  
-  return filteredItems
+  return navigationItems.value.filter(item => {
+    // Filter out items requiring auth if user is not logged in
+    return !(item.requiresAuth && !user.value)
+  })
 })
 
-// Add dropdown state management
+// Dropdown state management (only for profile now)
 const activeDropdown = ref(null)
 
 const toggleDropdown = (itemName) => {
@@ -142,6 +161,35 @@ const handleLogout = async () => {
     console.error('Logout error:', error)
   }
 }
+
+// Computed property for invite count
+const pendingInviteCount = computed(() => {
+  return userInvites.value?.length || 0
+})
+
+const onAcceptInvite = async (inviteId, onSuccess, onError) => {
+  try {
+    const success = await acceptInvite(inviteId)
+    if (success) {
+      await fetchUserInvites()
+      if (onSuccess) onSuccess()
+    } else {
+      if (onError) onError()
+    }
+  } catch (e) {
+    if (onError) onError()
+  }
+}
+
+const onDeclineInvite = async (inviteId, onSuccess) => {
+  try {
+    await declineInvite(inviteId)
+    await fetchUserInvites()
+    if (onSuccess) onSuccess()
+  } catch (e) {
+    if (onSuccess) onSuccess()
+  }
+}
 </script>
 
 <template>
@@ -160,49 +208,88 @@ const handleLogout = async () => {
       
       <!-- Desktop navigation -->
       <div class="nav-items desktop-only">
-        <div 
-          v-for="item in displayNavItems" 
-          :key="item.path"
-          class="nav-item-container"
-          @click.stop="toggleDropdown(item.name)"
-        >
-          <div class="nav-item" :class="{ 'active': activeDropdown === item.name }">
-            {{ item.name }}
-            <span class="dropdown-arrow" v-if="item.dropdown && item.dropdown.length">▼</span>
-          </div>
+        <template v-for="item in displayNavItems" :key="item.name">
           
-          <!-- Dropdown menu -->
+          <!-- Item with Dropdown -->
           <div 
-            v-if="item.dropdown && item.dropdown.length" 
-            class="dropdown-menu"
-            :class="{ 'show': activeDropdown === item.name }"
+            v-if="item.dropdown"
+            class="nav-item-container"
+            @click.stop="toggleDropdown(item.name)"
           >
-            <template v-for="dropdownItem in item.dropdown" :key="dropdownItem.path || dropdownItem.name">
-              <router-link 
-                v-if="dropdownItem.path"
-                :to="dropdownItem.path"
-                class="dropdown-item"
-                @click="closeDropdowns"
-              >
-                {{ dropdownItem.name }}
-              </router-link>
-              <button 
-                v-else-if="dropdownItem.action"
-                class="dropdown-item"
-                :class="{ 'dropdown-item-primary': dropdownItem.isPrimaryAction }"
-                @click="dropdownItem.action"
-              >
-                {{ dropdownItem.name }}
-              </button>
-            </template>
+            <div 
+              class="nav-item"
+              :class="{ 'has-badge': item.name === 'Projects' && pendingInviteCount > 0 }" 
+            >
+              {{ item.name }}
+               <!-- Badge for invites within Projects dropdown -->
+              <span v-if="item.name === 'Projects' && pendingInviteCount > 0" class="badge">
+                {{ pendingInviteCount }}
+              </span>
+              <span class="dropdown-arrow">▼</span>
+            </div>
+            <!-- Desktop dropdown menu -->
+            <div 
+              class="dropdown-menu"
+              :class="{ 'show': activeDropdown === item.name }"
+            >
+              <!-- Render standard dropdown items first -->
+              <template v-for="dropdownItem in item.dropdown" :key="dropdownItem.path || dropdownItem.name">
+                  <router-link 
+                    v-if="dropdownItem.path"
+                    :to="dropdownItem.path"
+                    class="dropdown-item"
+                    @click="closeDropdowns"
+                  >
+                    {{ dropdownItem.name }}
+                  </router-link>
+                  <button 
+                    v-else-if="dropdownItem.action"
+                    class="dropdown-item"
+                    :class="{ 'dropdown-item-primary': dropdownItem.isPrimaryAction }"
+                    @click="() => { dropdownItem.action(); closeDropdowns(); }" 
+                  >
+                    {{ dropdownItem.name }}
+                  </button>
+              </template>
+
+              <!-- Conditionally render invites section if user is logged in -->
+              <div v-if="user" class="dropdown-invites">
+                <ProjectInvites
+                  :invites="userInvites"
+                  :loading="invitesLoading"
+                  :error="invitesError"
+                  @accept="onAcceptInvite"
+                  @decline="onDeclineInvite"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+
+          <!-- Standard link (no dropdown) -->
+          <router-link 
+            v-else-if="item.path"
+            :to="item.path"
+            class="nav-item"
+            active-class="active"
+          >
+            {{ item.name }}
+          </router-link>
+
+          <!-- Button for action (no dropdown) -->
+          <button
+            v-else-if="item.action"
+            class="nav-item"
+            @click="item.action"
+          >
+            {{ item.name }}
+          </button>
+        </template>
       </div>
 
       <div class="nav-actions desktop-only">
         <template v-if="user">
           <div class="user-menu">
-            <div class="user-profile" @click="toggleDropdown('profile')">
+            <div class="user-profile" @click.stop="toggleDropdown('profile')">
               <div v-if="avatarUrl" class="avatar">
                 <img :src="avatarUrl" :alt="displayName" referrerpolicy="no-referrer">
               </div>
@@ -242,42 +329,67 @@ const handleLogout = async () => {
     <!-- Mobile menu -->
     <div class="mobile-menu" :class="{ 'is-open': isMobileMenuOpen }">
       <div class="mobile-nav-items">
-        <div 
-          v-for="item in displayNavItems" 
-          :key="item.path"
-          class="mobile-nav-item-container"
-        >
-          <div class="mobile-nav-item" @click="toggleDropdown(item.name)">
-            {{ item.name }}
-            <span class="dropdown-arrow" v-if="item.dropdown && item.dropdown.length">▼</span>
-          </div>
-          
-          <!-- Mobile dropdown menu -->
-          <div 
-            v-if="item.dropdown && item.dropdown.length" 
-            class="mobile-dropdown-menu"
-            :class="{ 'show': activeDropdown === item.name }"
-          >
-            <template v-for="dropdownItem in item.dropdown" :key="dropdownItem.path || dropdownItem.name">
-              <router-link 
-                v-if="dropdownItem.path"
-                :to="dropdownItem.path"
-                class="mobile-dropdown-item"
-                @click="closeMobileMenu"
-              >
-                {{ dropdownItem.name }}
-              </router-link>
-              <button 
-                v-else-if="dropdownItem.action"
-                class="mobile-dropdown-item"
-                :class="{ 'dropdown-item-primary': dropdownItem.isPrimaryAction }"
-                @click="dropdownItem.action"
-              >
-                {{ dropdownItem.name }}
-              </button>
-            </template>
-          </div>
-        </div>
+         <template v-for="item in displayNavItems" :key="item.name">
+            <!-- Mobile Item with Dropdown -->
+            <div v-if="item.dropdown" class="mobile-nav-item-container">
+               <div class="mobile-nav-item" @click="toggleDropdown(item.name)">
+                 {{ item.name }}
+                 <span v-if="item.name === 'Projects' && pendingInviteCount > 0" class="badge">
+                   {{ pendingInviteCount }}
+                 </span>
+                 <span class="dropdown-arrow">▼</span>
+               </div>
+               <div class="mobile-dropdown-menu" :class="{ 'show': activeDropdown === item.name }">
+                  <!-- Render standard mobile dropdown items -->
+                  <template v-for="dropdownItem in item.dropdown" :key="dropdownItem.path || dropdownItem.name">
+                     <router-link
+                       v-if="dropdownItem.path"
+                       :to="dropdownItem.path"
+                       class="mobile-dropdown-item"
+                       @click="closeMobileMenu"
+                     >
+                       {{ dropdownItem.name }}
+                     </router-link>
+                     <button
+                       v-else-if="dropdownItem.action"
+                       class="mobile-dropdown-item"
+                       :class="{ 'dropdown-item-primary': dropdownItem.isPrimaryAction }"
+                       @click="() => { dropdownItem.action(); closeMobileMenu(); }"
+                     >
+                       {{ dropdownItem.name }}
+                     </button>
+                  </template>
+                  <!-- Conditionally render mobile invites section -->
+                  <div v-if="user" class="mobile-dropdown-invites">
+                     <h4 class="mobile-invites-header">Pending Invites</h4>
+                     <ProjectInvites
+                       :invites="userInvites"
+                       :loading="invitesLoading"
+                       :error="invitesError"
+                       @accept="onAcceptInvite"
+                       @decline="onDeclineInvite"
+                     />
+                  </div>
+               </div>
+            </div>
+             <!-- Mobile Item without Dropdown (Link) -->
+            <router-link
+               v-else-if="item.path"
+               :to="item.path"
+               class="mobile-nav-item"
+               @click="closeMobileMenu"
+            >
+               {{ item.name }}
+            </router-link>
+            <!-- Mobile Item without Dropdown (Action) -->
+            <button
+              v-else-if="item.action"
+              class="mobile-nav-item"
+              @click="() => { item.action(); closeMobileMenu(); }"
+            >
+              {{ item.name }}
+            </button>
+         </template>
       </div>
 
       <div class="mobile-nav-actions">
@@ -303,6 +415,7 @@ const handleLogout = async () => {
     :is-open="isAuthModalOpen"
     @close="isAuthModalOpen = false"
   />
+
 </template>
 
 <style scoped>
@@ -388,78 +501,6 @@ const handleLogout = async () => {
   transform: rotate(180deg);
 }
 
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  left: 50%;
-  transform: translateX(-50%) translateY(10px);
-  background: var(--color-black);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  min-width: 180px;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s ease;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  padding: 0.5rem 0;
-}
-
-.dropdown-menu::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%) rotate(45deg);
-  width: 12px;
-  height: 12px;
-  background: var(--color-black);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dropdown-menu.show {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
-}
-
-.dropdown-item {
-  display: block;
-  padding: 0.75rem 1.5rem;
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  transition: background-color 0.2s ease, color 0.2s ease;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
-  font-size: 0.9rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.dropdown-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: var(--color-text);
-}
-
-.dropdown-item-primary {
-  background-color: var(--color-equipt-orange);
-  color: white;
-  font-weight: 500;
-}
-
-.dropdown-item-primary:hover {
-  background-color: var(--color-equipt-orange-90);
-  color: white;
-}
-
-.profile-dropdown {
-  right: 0;
-  left: auto;
-}
-
 .nav-actions {
   flex: 0 0 auto;
   display: flex;
@@ -481,34 +522,6 @@ const handleLogout = async () => {
 
 .user-profile:hover {
   background-color: rgba(255, 255, 255, 0.1);
-}
-
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: var(--color-black-30);
-  flex-shrink: 0;
-}
-
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-equipt-orange);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  flex-shrink: 0;
 }
 
 .user-name {
@@ -734,5 +747,130 @@ const handleLogout = async () => {
   .mobile-menu-btn {
     display: none;
   }
+}
+
+.dropdown-invites {
+  max-height: 400px;
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px); /* Position below the nav item */
+  left: 50%;
+  transform: translateX(-50%); /* Center the dropdown */
+  background-color: var(--color-black-90);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  min-width: 240px;
+  z-index: 1001;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(-10px); /* Start slightly up */
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.profile-dropdown {
+  left: auto;
+  right: 0;
+  transform: translateX(0);
+}
+
+.profile-dropdown.show {
+  transform: translateX(0) translateY(0);
+}
+
+.dropdown-item {
+  display: block;
+  padding: 0.75rem 1rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  border-radius: var(--border-radius-small);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background-color: var(--color-black-80);
+  color: var(--color-text);
+}
+
+.dropdown-item-primary {
+  background-color: var(--color-equipt-orange);
+  color: white;
+  font-weight: 500;
+}
+
+.dropdown-item-primary:hover {
+  background-color: var(--color-equipt-orange-90);
+  color: white;
+}
+
+/* Add styles for badge */
+.badge {
+  background-color: var(--color-primary);
+  color: white;
+  border-radius: 50%;
+  padding: 0.1em 0.4em;
+  font-size: 0.75rem;
+  min-width: 1.5em;
+  height: 1.5em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.5em;
+  line-height: 1;
+}
+
+.nav-item.has-badge {
+  /* Add padding or adjust spacing if needed when badge is present */
+}
+
+.nav-item:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.mobile-nav-item {
+  /* Ensure mobile items can be disabled */
+   display: flex; /* Align badge */
+   justify-content: space-between; /* Align badge */
+   align-items: center; /* Align badge */
+   width: 100%;
+}
+
+.mobile-nav-item:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.mobile-dropdown-invites {
+   border-top: 1px solid var(--color-border);
+   margin: 0.5rem 0;
+   padding: 0.5rem 0;
+}
+
+.mobile-invites-header {
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    padding: 0 0 0.5rem 1rem; /* Match dropdown item padding */
+    text-transform: uppercase;
 }
 </style>

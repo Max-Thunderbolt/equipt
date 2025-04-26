@@ -235,4 +235,161 @@ h1 {
 
 .update-files {
   margin-top: 1.25rem;
+}
+
+/* General Modal Styles */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem; /* Add padding for smaller screens */
+}
+
+.modal-content {
+  background: var(--color-black); 
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-large);
+  padding: 1.5rem;
+  width: 100%; /* Use 100% width for responsiveness */
+  max-width: 500px; /* Max width for larger screens */
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Add subtle shadow */
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem; /* Add padding */
+  border-bottom: 1px solid var(--color-border); /* Add separator */
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.75rem; /* Slightly larger */
+  font-weight: 300;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: 0.25rem;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.close-button:hover {
+  color: var(--color-text);
+}
+
+/* Keep modal-body simple, specific content styling remains scoped */
+.modal-body {
+  padding-top: 0.5rem; /* Add some space after header */
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem; /* Add padding */
+  border-top: 1px solid var(--color-border); /* Add separator */
+}
+
+/* Dropdown Menu Styles (from Navigation.vue) */
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem); /* Position below the trigger */
+  left: 50%;
+  transform: translateX(-50%) translateY(10px); /* Start slightly lower */
+  background: var(--color-black);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  min-width: 180px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease; /* Added visibility */
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  padding: 0.5rem 0;
+}
+
+/* Arrow pointing to the trigger */
+.dropdown-menu::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: var(--color-black);
+  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0); /* Move to final position */
+}
+
+.dropdown-item {
+  display: block;
+  padding: 0.75rem 1.5rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-item:hover {
+  background-color: var(--color-black-90); /* Adjusted hover */
+  color: var(--color-text);
+}
+
+/* Specific style for primary action items in dropdown */
+.dropdown-item-primary {
+  background-color: var(--color-primary);
+  color: white;
+  font-weight: 500;
+}
+
+.dropdown-item-primary:hover {
+  background-color: var(--color-primary-hover);
+  color: white;
+}
+
+/* Modifier for profile dropdown positioning */
+.profile-dropdown {
+  right: 0;
+  left: auto;
+  transform: translateX(0) translateY(10px); /* Adjust initial transform */
+}
+
+.profile-dropdown.show {
+  transform: translateX(0) translateY(0); /* Adjust final transform */
+}
+
+.profile-dropdown::before {
+  left: auto;
+  right: 15px; /* Position arrow correctly */
+  transform: translateX(0) rotate(45deg);
 } 

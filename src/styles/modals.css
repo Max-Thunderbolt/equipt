@@ -1,0 +1,88 @@
+/* Base Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050; /* Ensure it's above navigation */
+  padding: 1rem;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.modal-content {
+  background: var(--color-black-95); /* Dark background for content */
+  color: var(--color-text);
+  border-radius: var(--border-radius-large);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 600px; /* Default max width, can be overridden */
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; /* Limit height */
+  overflow: hidden; /* Prevents content bleed */
+  animation: slideInUp 0.3s ease forwards;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto; /* Allow body content to scroll */
+  flex-grow: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.close-button:hover {
+  opacity: 1;
+  color: var(--color-text);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+} 
