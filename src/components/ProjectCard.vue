@@ -1,50 +1,38 @@
-<script setup>
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
-
-const props = defineProps({
-  project: {
-    type: Object,
-    required: true
-  }
-})
-
-const navigateToProject = () => {
-  router.push(`/projects/${props.project.id}`)
-}
-</script>
-
 <template>
-  <div class="project-card" @click="navigateToProject">
+  <div class="project-card">
     <div class="project-image">
-      <img :src="project.cover_image || '/placeholder-project.jpg'" :alt="project.title">
+      <img :src="project.coverImage" :alt="project.title">
     </div>
     <div class="project-info">
       <h3 class="project-title">{{ project.title }}</h3>
       <div class="project-meta">
         <div class="project-author">
-          <img 
-            :src="project.profiles?.avatar_url || '/placeholder-avatar.jpg'" 
-            :alt="project.profiles?.display_name"
-            class="author-avatar"
-          >
-          <span>{{ project.profiles?.display_name || 'Anonymous' }}</span>
+          <img :src="project.author.avatar" :alt="project.author.name" class="author-avatar">
+          <span>{{ project.author.name }}</span>
         </div>
         <div class="project-stats">
           <span class="likes">
             <i class="fas fa-heart"></i>
-            {{ project.likes || 0 }}
+            {{ project.likes }}
           </span>
           <span class="views">
             <i class="fas fa-eye"></i>
-            {{ project.views || 0 }}
+            {{ project.views }}
           </span>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<script setup>
+defineProps({
+  project: {
+    type: Object,
+    required: true
+  }
+})
+</script>
 
 <style scoped>
 .project-card {
@@ -64,7 +52,6 @@ const navigateToProject = () => {
   width: 100%;
   aspect-ratio: 16/9;
   overflow: hidden;
-  background-color: #f5f5f5;
 }
 
 .project-image img {
@@ -101,7 +88,6 @@ const navigateToProject = () => {
   height: 24px;
   border-radius: 50%;
   object-fit: cover;
-  background-color: #f5f5f5;
 }
 
 .project-stats {
