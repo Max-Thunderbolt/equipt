@@ -82,11 +82,9 @@ const processingInvite = ref(null)
 const acceptInvite = async (inviteId) => {
   if (processingInvite.value) return
   processingInvite.value = inviteId
-  emit('accept', inviteId, () => {
-    // Find the project ID from the invite
-    const invite = props.invites.find(i => i.id === inviteId)
-    if (invite) {
-      router.push(`/projects/${invite.project_id}`)
+  emit('accept', inviteId, (result) => {
+    if (result.success && result.projectId) {
+      router.push(`/projects/${result.projectId}`)
     }
     processingInvite.value = null
   }, () => {
@@ -112,7 +110,7 @@ const declineInvite = async (inviteId) => {
 .loading, .error, .no-invites {
   text-align: center;
   padding: 2rem;
-  color: var(--color-text-secondary);
+  color: #666666;
 }
 
 .error {
@@ -132,8 +130,8 @@ const declineInvite = async (inviteId) => {
 }
 
 .invite-item {
-  background: var(--color-black-90);
-  border: 1px solid var(--color-border);
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--border-radius);
   overflow: hidden;
 }
@@ -150,13 +148,13 @@ const declineInvite = async (inviteId) => {
   margin: 0 0 0.5rem;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--color-text);
+  color: #000000;
 }
 
 .project-description {
   margin: 0;
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: #666666;
 }
 
 .invite-details {
@@ -180,7 +178,7 @@ const declineInvite = async (inviteId) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-black-80);
+  background: rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
 }
 
@@ -192,7 +190,7 @@ const declineInvite = async (inviteId) => {
 
 .inviter-name {
   font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  color: #666666;
 }
 
 .invite-actions {
@@ -226,14 +224,14 @@ const declineInvite = async (inviteId) => {
 }
 
 .btn-secondary {
-  background: var(--color-black-80);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: white;
+  color: #000000;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .btn-secondary:disabled {
-  background: var(--color-black-70);
-  color: var(--color-text-secondary);
+  background: rgba(0, 0, 0, 0.05);
+  color: #666666;
   cursor: not-allowed;
   opacity: 0.7;
 }

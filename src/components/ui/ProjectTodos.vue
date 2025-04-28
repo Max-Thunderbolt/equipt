@@ -15,16 +15,44 @@
 
     <!-- Add Todo Form -->
     <div v-if="showAddTodo && canEdit" class="add-todo-form">
-      <form @submit.prevent="addTodo" class="flex gap-2">
-        <input 
-          v-model="newTodoText" 
-          type="text" 
-          placeholder="Enter task description"
-          class="input-field flex-1"
-          required
-        />
-        <button type="submit" class="btn-primary">Add</button>
-        <button type="button" @click="showAddTodo = false" class="btn-secondary">Cancel</button>
+      <form @submit.prevent="addTodo" class="flex flex-col gap-3">
+        <div class="form-group">
+          <input 
+            v-model="newTodoTitle" 
+            type="text" 
+            placeholder="Task title"
+            class="input-field w-full text-lg font-medium"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <textarea 
+            v-model="newTodoDescription" 
+            placeholder="Add description..."
+            class="input-field w-full min-h-[80px] resize-y"
+            rows="3"
+          ></textarea>
+        </div>
+        <div class="flex gap-2 items-center">
+          <div class="form-group flex-1">
+            <input 
+              v-model="newTodoDuration" 
+              type="number" 
+              placeholder="Duration (min)"
+              class="input-field"
+              min="0"
+            />
+          </div>
+          <div class="form-group flex-1">
+            <input 
+              v-model="newTodoDueDate" 
+              type="datetime-local" 
+              class="input-field"
+            />
+          </div>
+          <button type="submit" class="btn-primary">Add Task</button>
+          <button type="button" @click="showAddTodo = false" class="btn-secondary">Cancel</button>
+        </div>
       </form>
     </div>
 
@@ -85,7 +113,161 @@
               class="checkbox"
             />
             <div class="todo-details">
-              <span class="todo-text">{{ todo.description }}</span>
+              <div class="todo-header">
+                <span class="todo-title">{{ todo.name }}</span>
+                <div class="todo-actions">
+                  <button 
+                    v-if="canEdit"
+                    @click="toggleEditMode(todo)"
+                    class="action-btn edit-btn"
+                    title="Edit task"
+                  >
+                    ✏️
+                  </button>
+                  <button 
+                    v-if="canEdit"
+                    @click="showAssignModal(todo)"
+                    class="action-btn assign-btn"
+                    title="Assign task"
+                  >
+                    👤
+                  </button>
+                  <button 
+                    v-if="canEdit"
+                    @click="deleteTodo(todo.id)"
+                    class="action-btn delete-btn"
+                    title="Delete task"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              <div v-if="editingTodo?.id === todo.id" class="edit-todo-form">
+                <form @submit.prevent="saveTodoEdit(todo)" class="flex flex-col gap-3">
+                  <div class="form-group">
+                    <input 
+                      v-model="editingTodo.title" 
+                      type="text" 
+                      placeholder="Task title"
+                      class="input-field w-full text-lg font-medium"
+                      required
+                    />
+                  </div>
+                  <div class="form-group">
+                    <textarea 
+                      v-model="editingTodo.description" 
+                      placeholder="Add description..."
+                      class="input-field w-full min-h-[80px] resize-y"
+                      rows="3"
+                    ></textarea>
+                  </div>
+                  <div class="flex gap-2 items-center">
+                    <div class="form-group flex-1">
+                      <input 
+                        v-model="editingTodo.duration_minutes" 
+                        type="number" 
+                        placeholder="Duration (min)"
+                        class="input-field"
+                        min="0"
+                      />
+                    </div>
+                    <div class="form-group flex-1">
+                      <input 
+                        v-model="editingTodo.due_date" 
+                        type="datetime-local" 
+                        class="input-field"
+                      />
+                    </div>
+                  </div>
+                  <div class="subtasks-edit">
+                    <h4 class="subtasks-title">Subtasks</h4>
+                    <div class="subtasks-list">
+                      <div 
+                        v-for="subtask in editingTodo.subtasks" 
+                        :key="subtask.id"
+                        class="subtask-item"
+                      >
+                        <input
+                          type="checkbox"
+                          v-model="subtask.completed"
+                          class="checkbox"
+                        />
+                        <input
+                          v-model="subtask.description"
+                          type="text"
+                          class="input-field flex-1"
+                          placeholder="Subtask description"
+                        />
+                        <button 
+                          type="button"
+                          @click="deleteSubtask(subtask.id)"
+                          class="delete-subtask-btn"
+                          title="Delete subtask"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    <div class="add-subtask">
+                      <form @submit.prevent="addSubtask(todo)" class="add-subtask-form">
+                        <input 
+                          v-model="newSubtaskText[todo.id]" 
+                          type="text" 
+                          placeholder="Add subtask..."
+                          class="input-field"
+                        />
+                        <button type="submit" class="btn-primary btn-sm">Add</button>
+                      </form>
+                    </div>
+                  </div>
+                  <div class="edit-actions">
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                    <button 
+                      type="button" 
+                      @click="cancelEdit" 
+                      class="btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+              <p v-else-if="todo.description" class="todo-description">{{ todo.description }}</p>
+              <div v-if="todo.subtasks && todo.subtasks.length > 0" class="subtasks-list">
+                <div 
+                  v-for="subtask in todo.subtasks" 
+                  :key="subtask.id"
+                  class="subtask-item"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="subtask.completed"
+                    @change="toggleSubtask(subtask)"
+                    :disabled="!canEdit && todo.assigned_to !== user?.id"
+                    class="checkbox"
+                  />
+                  <span :class="{ 'completed': subtask.completed }">{{ subtask.description }}</span>
+                  <button 
+                    v-if="canEdit"
+                    @click="deleteSubtask(subtask.id)"
+                    class="delete-subtask-btn"
+                    title="Delete subtask"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              <div v-if="canEdit || todo.assigned_to === user?.id" class="add-subtask">
+                <form @submit.prevent="addSubtask(todo)" class="add-subtask-form">
+                  <input 
+                    v-model="newSubtaskText[todo.id]" 
+                    type="text" 
+                    placeholder="Add subtask..."
+                    class="input-field"
+                  />
+                  <button type="submit" class="btn-primary btn-sm">Add</button>
+                </form>
+              </div>
               <div class="todo-meta">
                 <div v-if="todo.assigned_to" class="assigned-to">
                   <img 
@@ -111,26 +293,14 @@
                   </button>
                 </div>
                 <span class="todo-date">{{ formatDate(todo.created_at) }}</span>
+                <span v-if="todo.duration_minutes" class="todo-duration">
+                  ⏱️ {{ todo.duration_minutes }} min
+                </span>
+                <span v-if="todo.due_date" class="todo-due-date" :class="{ 'overdue': isOverdue(todo.due_date) }">
+                  📅 {{ formatDate(todo.due_date) }}
+                </span>
               </div>
             </div>
-          </div>
-          <div class="todo-actions">
-            <button 
-              v-if="canEdit"
-              @click="showAssignModal(todo)"
-              class="action-btn assign-btn"
-              title="Assign task"
-            >
-              👤
-            </button>
-            <button 
-              v-if="canEdit"
-              @click="deleteTodo(todo.id)"
-              class="action-btn delete-btn"
-              title="Delete task"
-            >
-              ×
-            </button>
           </div>
         </div>
       </div>
@@ -163,7 +333,161 @@
                 class="checkbox"
               />
               <div class="todo-details">
-                <span class="todo-text">{{ todo.description }}</span>
+                <div class="todo-header">
+                  <span class="todo-title">{{ todo.name }}</span>
+                  <div class="todo-actions">
+                    <button 
+                      v-if="canEdit"
+                      @click="toggleEditMode(todo)"
+                      class="action-btn edit-btn"
+                      title="Edit task"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      v-if="canEdit"
+                      @click="showAssignModal(todo)"
+                      class="action-btn assign-btn"
+                      title="Assign task"
+                    >
+                      👤
+                    </button>
+                    <button 
+                      v-if="canEdit"
+                      @click="deleteTodo(todo.id)"
+                      class="action-btn delete-btn"
+                      title="Delete task"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <div v-if="editingTodo?.id === todo.id" class="edit-todo-form">
+                  <form @submit.prevent="saveTodoEdit(todo)" class="flex flex-col gap-3">
+                    <div class="form-group">
+                      <input 
+                        v-model="editingTodo.title" 
+                        type="text" 
+                        placeholder="Task title"
+                        class="input-field w-full text-lg font-medium"
+                        required
+                      />
+                    </div>
+                    <div class="form-group">
+                      <textarea 
+                        v-model="editingTodo.description" 
+                        placeholder="Add description..."
+                        class="input-field w-full min-h-[80px] resize-y"
+                        rows="3"
+                      ></textarea>
+                    </div>
+                    <div class="flex gap-2 items-center">
+                      <div class="form-group flex-1">
+                        <input 
+                          v-model="editingTodo.duration_minutes" 
+                          type="number" 
+                          placeholder="Duration (min)"
+                          class="input-field"
+                          min="0"
+                        />
+                      </div>
+                      <div class="form-group flex-1">
+                        <input 
+                          v-model="editingTodo.due_date" 
+                          type="datetime-local" 
+                          class="input-field"
+                        />
+                      </div>
+                    </div>
+                    <div class="subtasks-edit">
+                      <h4 class="subtasks-title">Subtasks</h4>
+                      <div class="subtasks-list">
+                        <div 
+                          v-for="subtask in editingTodo.subtasks" 
+                          :key="subtask.id"
+                          class="subtask-item"
+                        >
+                          <input
+                            type="checkbox"
+                            v-model="subtask.completed"
+                            class="checkbox"
+                          />
+                          <input
+                            v-model="subtask.description"
+                            type="text"
+                            class="input-field flex-1"
+                            placeholder="Subtask description"
+                          />
+                          <button 
+                            type="button"
+                            @click="deleteSubtask(subtask.id)"
+                            class="delete-subtask-btn"
+                            title="Delete subtask"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                      <div class="add-subtask">
+                        <form @submit.prevent="addSubtask(todo)" class="add-subtask-form">
+                          <input 
+                            v-model="newSubtaskText[todo.id]" 
+                            type="text" 
+                            placeholder="Add subtask..."
+                            class="input-field"
+                          />
+                          <button type="submit" class="btn-primary btn-sm">Add</button>
+                        </form>
+                      </div>
+                    </div>
+                    <div class="edit-actions">
+                      <button type="submit" class="btn-primary">Save Changes</button>
+                      <button 
+                        type="button" 
+                        @click="cancelEdit" 
+                        class="btn-secondary"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+                <p v-else-if="todo.description" class="todo-description">{{ todo.description }}</p>
+                <div v-if="todo.subtasks && todo.subtasks.length > 0" class="subtasks-list">
+                  <div 
+                    v-for="subtask in todo.subtasks" 
+                    :key="subtask.id"
+                    class="subtask-item"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="subtask.completed"
+                      @change="toggleSubtask(subtask)"
+                      :disabled="!canEdit && todo.assigned_to !== user?.id"
+                      class="checkbox"
+                    />
+                    <span :class="{ 'completed': subtask.completed }">{{ subtask.description }}</span>
+                    <button 
+                      v-if="canEdit"
+                      @click="deleteSubtask(subtask.id)"
+                      class="delete-subtask-btn"
+                      title="Delete subtask"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <div v-if="canEdit || todo.assigned_to === user?.id" class="add-subtask">
+                  <form @submit.prevent="addSubtask(todo)" class="add-subtask-form">
+                    <input 
+                      v-model="newSubtaskText[todo.id]" 
+                      type="text" 
+                      placeholder="Add subtask..."
+                      class="input-field"
+                    />
+                    <button type="submit" class="btn-primary btn-sm">Add</button>
+                  </form>
+                </div>
                 <div class="todo-meta">
                   <div v-if="todo.assigned_to" class="assigned-to">
                     <img 
@@ -181,26 +505,14 @@
                     <span class="unassigned-text">Unassigned</span>
                   </div>
                   <span class="todo-date">{{ formatDate(todo.created_at) }}</span>
+                  <span v-if="todo.duration_minutes" class="todo-duration">
+                    ⏱️ {{ todo.duration_minutes }} min
+                  </span>
+                  <span v-if="todo.due_date" class="todo-due-date" :class="{ 'overdue': isOverdue(todo.due_date) }">
+                    📅 {{ formatDate(todo.due_date) }}
+                  </span>
                 </div>
               </div>
-            </div>
-            <div class="todo-actions">
-              <button 
-                v-if="canEdit"
-                @click="showAssignModal(todo)"
-                class="action-btn assign-btn"
-                title="Assign task"
-              >
-                👤
-              </button>
-              <button 
-                v-if="canEdit"
-                @click="deleteTodo(todo.id)"
-                class="action-btn delete-btn"
-                title="Delete task"
-              >
-                ×
-              </button>
             </div>
           </div>
         </div>
@@ -294,7 +606,10 @@ const props = defineProps({
 const { user } = useAuth()
 const todos = ref([])
 const showAddTodo = ref(false)
-const newTodoText = ref('')
+const newTodoTitle = ref('')
+const newTodoDescription = ref('')
+const newTodoDuration = ref(null)
+const newTodoDueDate = ref(null)
 const { showToast } = useToast()
 const { searchResults, loading: searchLoading, searchUsers } = useUserSearch()
 
@@ -322,6 +637,10 @@ const filters = [
 
 // Task search query
 const taskSearchQuery = ref('')
+
+const newSubtaskText = ref({})
+
+const editingTodo = ref(null)
 
 onMounted(async () => {
   await fetchTodos()
@@ -354,7 +673,8 @@ async function fetchTodos() {
     const { data: todosData, error: todosError } = await supabase
       .from('project_todos')
       .select(`
-        * 
+        *,
+        subtasks:project_subtasks(*)
       `)
       .eq('project_id', props.projectId)
       .order('created_at', { ascending: false })
@@ -368,37 +688,32 @@ async function fetchTodos() {
     // Step 2: Extract unique assignee IDs
     const assigneeIds = [...new Set(todosData
       .map(todo => todo.assigned_to)
-      .filter(id => id !== null) // Filter out null IDs
+      .filter(id => id !== null)
     )];
 
     let assigneesMap = {};
-    // Step 3: Fetch profiles for the unique assignee IDs if any exist
     if (assigneeIds.length > 0) {
       const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles') // Query the profiles table
+        .from('profiles')
         .select('id, display_name, avatar_url')
-        .in('id', assigneeIds); // Match the IDs
+        .in('id', assigneeIds);
 
       if (profilesError) throw profilesError;
-
-      // Create a map for easy lookup
       assigneesMap = profilesData.reduce((map, profile) => {
         map[profile.id] = profile;
         return map;
       }, {});
     }
 
-    // Step 4: Merge profile data into todos
+    // Step 3: Merge profile data into todos
     const enrichedTodos = todosData.map(todo => ({
       ...todo,
-      // Add the 'assignee' object if the profile was found
       assignee: todo.assigned_to ? assigneesMap[todo.assigned_to] || null : null
     }));
 
     todos.value = enrichedTodos;
-
   } catch (error) {
-    console.error('Error loading tasks and assignees:', error); // Log the specific error
+    console.error('Error loading tasks and assignees:', error);
     showToast('Error loading tasks', 'error');
   }
 }
@@ -458,16 +773,22 @@ async function addTodo() {
       .from('project_todos')
       .insert({
         project_id: props.projectId,
-        description: newTodoText.value,
-        completed: false
+        name: newTodoTitle.value,
+        description: newTodoDescription.value || null,
+        completed: false,
+        duration_minutes: newTodoDuration.value ? parseInt(newTodoDuration.value) : null,
+        due_date: newTodoDueDate.value || null
       })
 
     if (todoError) throw todoError
 
     // Create project update for new todo
-    await createProjectUpdate(`Added new task: ${newTodoText.value}`)
+    await createProjectUpdate(`Added new task: ${newTodoTitle.value}`)
 
-    newTodoText.value = ''
+    newTodoTitle.value = ''
+    newTodoDescription.value = ''
+    newTodoDuration.value = null
+    newTodoDueDate.value = null
     showAddTodo.value = false
     await fetchTodos()
     showToast('Task added successfully', 'success')
@@ -488,8 +809,8 @@ async function toggleTodo(todo) {
 
     // Create project update for todo status change
     const updateText = newStatus 
-      ? `Completed task: ${todo.description}`
-      : `Reopened task: ${todo.description}`
+      ? `Completed task: ${todo.name}`
+      : `Reopened task: ${todo.name}`
     await createProjectUpdate(updateText)
 
     await fetchTodos()
@@ -512,7 +833,7 @@ async function deleteTodo(todoId) {
     if (error) throw error
 
     // Create project update for deleted todo
-    await createProjectUpdate(`Removed task: ${todoToDelete.description}`)
+    await createProjectUpdate(`Removed task: ${todoToDelete.name}`)
 
     await fetchTodos()
     showToast('Task deleted successfully', 'success')
@@ -562,7 +883,7 @@ const assignTask = async (selectedCollaborator) => {
 
     if (error) throw error
 
-    await createProjectUpdate(`Assigned task "${selectedTodo.value.description}" to ${selectedCollaborator.user?.display_name || 'Unknown User'}`)
+    await createProjectUpdate(`Assigned task "${selectedTodo.value.name}" to ${selectedCollaborator.user?.display_name || 'Unknown User'}`)
     await fetchTodos()
     showToast('Task assigned successfully', 'success')
     closeAssignModal()
@@ -584,7 +905,7 @@ const claimTask = async (todo) => {
 
     if (error) throw error
 
-    await createProjectUpdate(`Claimed task: ${todo.description}`)
+    await createProjectUpdate(`Claimed task: ${todo.name}`)
     await fetchTodos()
     showToast('Task claimed successfully', 'success')
   } catch (error) {
@@ -606,6 +927,12 @@ const toggleCompletedVisibility = () => {
   showCompleted.value = !showCompleted.value
 }
 
+// Add isOverdue helper function
+const isOverdue = (dueDate) => {
+  if (!dueDate) return false
+  return new Date(dueDate) < new Date()
+}
+
 // Computed properties for filtering and sorting
 const filteredTodos = computed(() => {
   let result = [...todos.value]
@@ -614,7 +941,7 @@ const filteredTodos = computed(() => {
   if (taskSearchQuery.value) {
     const query = taskSearchQuery.value.toLowerCase()
     result = result.filter(todo => 
-      todo.description.toLowerCase().includes(query) ||
+      todo.name.toLowerCase().includes(query) ||
       (todo.assignee?.display_name?.toLowerCase().includes(query))
     )
   }
@@ -672,6 +999,119 @@ const getFilterCount = (filterValue) => {
   if (filterValue === 'assigned') return todos.value.filter(t => t.assigned_to).length
   if (filterValue === 'unassigned') return todos.value.filter(t => !t.assigned_to).length
   return 0
+}
+
+// Add a new subtask
+async function addSubtask(todo) {
+  if (!newSubtaskText.value[todo.id]) return;
+
+  try {
+    const { error } = await supabase
+      .from('project_subtasks')
+      .insert({
+        todo_id: todo.id,
+        description: newSubtaskText.value[todo.id],
+        completed: false
+      })
+
+    if (error) throw error;
+
+    newSubtaskText.value[todo.id] = '';
+    await fetchTodos();
+    showToast('Subtask added successfully', 'success');
+  } catch (error) {
+    showToast('Error adding subtask', 'error');
+  }
+}
+
+// Toggle subtask completion
+async function toggleSubtask(subtask) {
+  try {
+    const newStatus = !subtask.completed;
+    const { error } = await supabase
+      .from('project_subtasks')
+      .update({ completed: newStatus })
+      .eq('id', subtask.id)
+
+    if (error) throw error;
+    await fetchTodos();
+  } catch (error) {
+    showToast('Error updating subtask', 'error');
+  }
+}
+
+// Delete a subtask
+async function deleteSubtask(subtaskId) {
+  try {
+    const { error } = await supabase
+      .from('project_subtasks')
+      .delete()
+      .eq('id', subtaskId)
+
+    if (error) throw error;
+    await fetchTodos();
+    showToast('Subtask deleted successfully', 'success');
+  } catch (error) {
+    showToast('Error deleting subtask', 'error');
+  }
+}
+
+// Toggle edit mode for a todo
+function toggleEditMode(todo) {
+  if (editingTodo.value?.id === todo.id) {
+    cancelEdit()
+  } else {
+    editingTodo.value = {
+      ...todo,
+      subtasks: todo.subtasks ? [...todo.subtasks] : []
+    }
+  }
+}
+
+// Cancel editing
+function cancelEdit() {
+  editingTodo.value = null
+}
+
+// Save todo edits
+async function saveTodoEdit(todo) {
+  try {
+    // Update main todo
+    const { error: todoError } = await supabase
+      .from('project_todos')
+      .update({
+        name: editingTodo.value.title,
+        description: editingTodo.value.description,
+        duration_minutes: editingTodo.value.duration_minutes ? parseInt(editingTodo.value.duration_minutes) : null,
+        due_date: editingTodo.value.due_date || null
+      })
+      .eq('id', todo.id)
+
+    if (todoError) throw todoError
+
+    // Update subtasks
+    for (const subtask of editingTodo.value.subtasks) {
+      if (subtask.id) {
+        // Update existing subtask
+        const { error: subtaskError } = await supabase
+          .from('project_subtasks')
+          .update({
+            description: subtask.description,
+            completed: subtask.completed
+          })
+          .eq('id', subtask.id)
+
+        if (subtaskError) throw subtaskError
+      }
+    }
+
+    await fetchTodos()
+    editingTodo.value = null
+    showToast('Task updated successfully', 'success')
+  } catch (error) {
+    console.error('Error updating task:', error)
+    showToast('Error updating task', 'error')
+  }
 }
 </script>
 
@@ -895,6 +1335,19 @@ const getFilterCount = (filterValue) => {
   color: var(--color-text-secondary);
 }
 
+.todo-duration,
+.todo-due-date {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.todo-due-date.overdue {
+  color: var(--color-danger);
+}
+
 /* Modal styles */
 .modal {
   position: fixed;
@@ -1018,5 +1471,162 @@ const getFilterCount = (filterValue) => {
   .sort-options {
     justify-content: flex-start;
   }
+}
+
+/* Additional styles for new todo layout */
+.todo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.todo-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.todo-description {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+  white-space: pre-line;
+}
+
+.add-todo-form {
+  background: var(--color-background-soft);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin: 1rem;
+}
+
+.add-todo-form textarea {
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.todo-content {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex: 1;
+}
+
+.checkbox {
+  margin-top: 0.35rem;
+}
+
+.subtasks-list {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.subtask-item .completed {
+  text-decoration: line-through;
+  color: var(--color-text-secondary);
+}
+
+.delete-subtask-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--color-danger);
+  cursor: pointer;
+  padding: 0 0.25rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: opacity 0.2s ease;
+}
+
+.subtask-item:hover .delete-subtask-btn {
+  opacity: 1;
+}
+
+.add-subtask {
+  margin-top: 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.add-subtask-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-subtask-form .input-field {
+  flex: 1;
+  font-size: 0.9rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+.edit-todo-form {
+  background: var(--color-background-soft);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin: 0.5rem 0;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.subtasks-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin: 0.5rem 0;
+}
+
+.edit-btn {
+  color: var(--color-primary);
+}
+
+.subtasks-edit {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-background);
+  border-radius: var(--border-radius);
+}
+
+.subtasks-edit .subtasks-list {
+  margin: 0.5rem 0;
+}
+
+.subtasks-edit .subtask-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--color-background-soft);
+  border-radius: var(--border-radius);
+  margin-bottom: 0.5rem;
+}
+
+.subtasks-edit .subtask-item .input-field {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.subtasks-edit .delete-subtask-btn {
+  opacity: 1;
+  padding: 0.25rem 0.5rem;
 }
 </style> 

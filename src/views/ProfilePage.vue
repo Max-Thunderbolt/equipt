@@ -99,55 +99,155 @@ const formatDate = (date) => {
 }
 
 // Add file related state and methods
-const userFiles = ref([])
-const fetchingFiles = ref(false)
-const filesError = ref(null)
+const files = ref([])
+const loadingFiles = ref(false)
+const fileError = ref(null)
 
-// Add method to fetch user's files
+// Add new state for file management
+const fileViewMode = ref('grid')
+const fileSortOrder = ref('newest')
+const fileSearchQuery = ref('')
+
+// Add computed property for filtered files
+const filteredFiles = computed(() => {
+  let filtered = [...files.value]
+  
+  // Apply search filter
+  if (fileSearchQuery.value.trim()) {
+    const query = fileSearchQuery.value.toLowerCase().trim()
+    filtered = filtered.filter(file => 
+      file.name.toLowerCase().includes(query)
+    )
+  }
+  
+  // Apply sorting
+  if (fileSortOrder.value === 'newest') {
+    filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  } else if (fileSortOrder.value === 'oldest') {
+    filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  } else if (fileSortOrder.value === 'name') {
+    filtered.sort((a, b) => a.name.localeCompare(b.name))
+  } else if (fileSortOrder.value === 'size') {
+    filtered.sort((a, b) => (b.size_bytes || 0) - (a.size_bytes || 0))
+  }
+  
+  return filtered
+})
+
+// Update the fetchUserFiles function
 const fetchUserFiles = async () => {
   if (!user.value) return
   
-  fetchingFiles.value = true
-  filesError.value = null
+  loadingFiles.value = true
+  fileError.value = null
   
   try {
+    // First, get all projects the user has access to
+    const { data: userProjects, error: projectsError } = await supabase
+      .from('project_collaborators')
+      .select(`
+        project_id,
+        projects (
+          id,
+          name,
+          owner_id,
+          is_public
+        )
+      `)
+      .eq('user_id', user.value.id)
+    
+    if (projectsError) throw projectsError
+    
+    // Get project IDs the user has access to
+    const projectIds = userProjects.map(p => p.project_id)
+    
+    // Add projects owned by the user
+    const { data: ownedProjects, error: ownedError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('owner_id', user.value.id)
+    
+    if (ownedError) throw ownedError
+    
+    const ownedProjectIds = ownedProjects.map(p => p.id)
+    const allProjectIds = [...new Set([...projectIds, ...ownedProjectIds])]
+    
+    // Fetch files from all accessible projects
     const { data, error } = await supabase
       .from('project_files')
-      .select('*')
-      .eq('uploaded_by', user.value.id)
+      .select(`
+        *,
+        project:projects(id, name, owner_id, is_public)
+      `)
+      .in('project_id', allProjectIds)
       .order('created_at', { ascending: false })
-      
+    
     if (error) throw error
     
-    userFiles.value = data || []
+    files.value = data || []
     
     // Ensure all files have URLs
-    const filesToUpdate = userFiles.value.filter(file => !file.url && file.file_path)
+    const filesToUpdate = files.value.filter(file => !file.url && file.file_path)
     if (filesToUpdate.length > 0) {
       await updateMissingFileUrls(filesToUpdate)
       
-      // Refresh files with updated URLs
+      // Refresh files
       const { data: updatedData } = await supabase
         .from('project_files')
-        .select('*')
-        .eq('uploaded_by', user.value.id)
+        .select(`
+          *,
+          project:projects(id, name, owner_id, is_public)
+        `)
+        .in('project_id', allProjectIds)
         .order('created_at', { ascending: false })
-        
+      
       if (updatedData) {
-        userFiles.value = updatedData
+        files.value = updatedData
       }
     }
   } catch (err) {
     console.error('Error fetching user files:', err)
-    filesError.value = 'Failed to load files'
+    fileError.value = 'Failed to load files'
   } finally {
-    fetchingFiles.value = false
+    loadingFiles.value = false
   }
 }
 
-// Handle file deletion
-const handleFileDeleted = (file) => {
-  userFiles.value = userFiles.value.filter(f => f.id !== file.id)
+// Add computed property for file source
+const getFileSource = (file) => {
+  if (!file.project) return 'Unknown'
+  if (file.project.owner_id === user.value?.id) return 'Owned'
+  return 'Shared'
+}
+
+// Add file management methods
+const handleFileDeleted = async (file) => {
+  try {
+    const success = await deleteFile(file.file_path, file.id)
+    
+    if (success) {
+      files.value = files.value.filter(f => f.id !== file.id)
+    } else {
+      fileError.value = 'Failed to delete file'
+    }
+  } catch (err) {
+    console.error('Error deleting file:', err)
+    fileError.value = 'Failed to delete file'
+  }
+}
+
+const handleFileDownload = async (file) => {
+  try {
+    if (!file || !file.file_path) {
+      fileError.value = 'Invalid file information'
+      return
+    }
+    
+    await downloadFile(file.file_path)
+  } catch (err) {
+    console.error('Error downloading file:', err)
+    fileError.value = 'Failed to download the file'
+  }
 }
 
 // Update onMounted to fetch files
@@ -268,16 +368,69 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- User Files Section -->
-      <div v-if="!fetchingFiles && !filesError && userFiles.length > 0" class="files-section">
-        <h3>My Files</h3>
-        <FilesGrid 
-          :files="userFiles" 
-          layout="grid" 
-          :allowDelete="true"
-          emptyMessage="You haven't uploaded any files yet"
+      <!-- Files Section -->
+      <div class="files-section">
+        <div class="section-header">
+          <h2>My Files</h2>
+          <div class="file-controls">
+            <div class="search-bar">
+              <input 
+                type="text" 
+                v-model="fileSearchQuery" 
+                placeholder="Search files..."
+                class="search-input"
+              />
+            </div>
+            <div class="view-controls">
+              <button 
+                :class="['view-btn', { active: fileViewMode === 'grid' }]" 
+                @click="fileViewMode = 'grid'"
+                title="Grid View"
+              >
+                ◫
+              </button>
+              <button 
+                :class="['view-btn', { active: fileViewMode === 'list' }]" 
+                @click="fileViewMode = 'list'"
+                title="List View"
+              >
+                ≡
+              </button>
+            </div>
+            <div class="sort-controls">
+              <label for="file-sort-select">Sort by:</label>
+              <select id="file-sort-select" v-model="fileSortOrder" class="sort-select">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="name">Name</option>
+                <option value="size">Size</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <FilesGrid
+          :files="filteredFiles"
+          :loading="loadingFiles"
+          :view-mode="fileViewMode"
+          :allow-delete="true"
+          :empty-message="'No files uploaded yet'"
           @delete="handleFileDeleted"
-        />
+          @download="handleFileDownload"
+        >
+          <template #file-meta="{ file }">
+            <span class="file-source" :class="getFileSource(file).toLowerCase()">
+              {{ getFileSource(file) }}
+            </span>
+            <span class="project-name" v-if="file.project">
+              from {{ file.project.name }}
+            </span>
+          </template>
+        </FilesGrid>
+        
+        <div v-if="fileError" class="error-message">
+          {{ fileError }}
+        </div>
       </div>
     </div>
   </div>
@@ -635,15 +788,102 @@ button {
 }
 
 .files-section {
-  background: var(--secondary-dark);
-  border-radius: 8px;
-  padding: 1.5rem;
   margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--surface-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.files-section h3 {
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
-  font-size: 1.25rem;
-  color: var(--text-primary);
+}
+
+.file-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.search-bar {
+  position: relative;
+}
+
+.search-input {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  width: 200px;
+  font-size: 0.9rem;
+}
+
+.view-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.view-btn {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sort-select {
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.9rem;
+}
+
+.error-message {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--error-color);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.file-source {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.file-source.owned {
+  background: var(--color-success);
+  color: white;
+}
+
+.file-source.shared {
+  background: var(--color-info);
+  color: white;
+}
+
+.project-name {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin-left: 8px;
 }
 </style> 

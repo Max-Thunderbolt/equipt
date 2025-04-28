@@ -117,17 +117,12 @@ const acceptInvite = async (inviteId) => {
   processingInvite.value = inviteId
   
   try {
-    const success = await acceptInviteAction(inviteId)
-    if (success) {
-      // Find the project ID from the invite
-      const invite = invites.value.find(i => i.id === inviteId)
-      if (invite) {
-        // Close modal and navigate to the project
-        closeModal()
-        router.push(`/projects/${invite.project_id}`)
-      } else {
-         // Invite might have been processed already, just close modal
-         closeModal()
+    const result = await acceptInviteAction(inviteId)
+    if (result.success) {
+      // Close modal and navigate to the project
+      closeModal()
+      if (result.projectId) {
+        router.push(`/projects/${result.projectId}`)
       }
     }
   } finally {

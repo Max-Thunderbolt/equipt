@@ -92,30 +92,65 @@ export interface Database {
         Row: {
           id: string // uuid
           project_id: string // uuid, FK to projects.id
+          title: string // text
           description: string | null // text
           completed: boolean | null // bool
           created_at: string | null // timestamptz
           updated_at: string | null // timestamptz
-          assigned_to: string | null // uuid, FK to auth.users.id (added by migration)
-          // Note: Diagram doesn't show 'title', 'status', 'created_by'
+          assigned_to: string | null // uuid, FK to auth.users.id
+          duration_minutes: number | null // integer
+          due_date: string | null // timestamptz
         }
         Insert: {
           id?: string
           project_id: string
+          title: string
           description?: string | null
           completed?: boolean | null
           created_at?: string | null
           updated_at?: string | null
-          assigned_to?: string | null // added by migration
+          assigned_to?: string | null
+          duration_minutes?: number | null
+          due_date?: string | null
         }
         Update: {
           id?: string
           project_id?: string
+          title?: string
           description?: string | null
           completed?: boolean | null
           created_at?: string | null
           updated_at?: string | null
-          assigned_to?: string | null // added by migration
+          assigned_to?: string | null
+          duration_minutes?: number | null
+          due_date?: string | null
+        }
+      }
+
+      project_subtasks: {
+        Row: {
+          id: string // uuid
+          todo_id: string // uuid, FK to project_todos.id
+          description: string // text
+          completed: boolean // bool
+          created_at: string // timestamptz
+          updated_at: string // timestamptz
+        }
+        Insert: {
+          id?: string
+          todo_id: string
+          description: string
+          completed?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          todo_id?: string
+          description?: string
+          completed?: boolean
+          created_at?: string
+          updated_at?: string
         }
       }
 

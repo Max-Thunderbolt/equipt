@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '../../composables/useAuth'
 import { useProfile } from '../../composables/useProfile'
 import { useProjects } from '../../composables/useProjects'
@@ -8,6 +8,7 @@ import NewProjectModal from '../modals/NewProjectModal.vue'
 import AuthModal from '../modals/AuthModal.vue'
 import ProjectInvites from '../project/ProjectInvites.vue'
 import { supabase } from '../../supabase/config'
+import { useRouter } from 'vue-router'
 
 const { user, session } = useAuth()
 const { profile, fetchProfile } = useProfile()
@@ -20,6 +21,7 @@ const {
   acceptInvite,
   declineInvite
 } = useProjectInvites()
+const router = useRouter()
 
 // Mobile menu state
 const isMobileMenuOpen = ref(false)
@@ -66,8 +68,7 @@ const navigationItems = ref([
     requiresAuth: true,
     dropdown: [
       { name: 'New Project', action: () => isNewProjectModalOpen.value = true, isPrimaryAction: true },
-      { name: 'My Projects', path: '/projects', requiresAuth: true },
-      { name: 'Files', path: '/files', requiresAuth: true }
+      { name: 'My Projects', path: '/projects', requiresAuth: true }
     ]
   },
   { 
@@ -140,7 +141,10 @@ const handleNewProject = async (projectData) => {
     const result = await createProject(projectData, user.value.id)
     console.log('Project creation result:', result)
     isNewProjectModalOpen.value = false
-    // Optionally, redirect to the new project or refresh the projects list
+    // Redirect to the new project
+    if (result?.id) {
+      router.push(`/projects/${result.id}`)
+    }
   } catch (err) {
     console.error('Failed to create project:', err)
   }
@@ -190,10 +194,26 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
     if (onSuccess) onSuccess()
   }
 }
+
+const navOpacity = ref(1);
+
+function handleScroll() {
+  const maxScroll = 200; // px after which nav is fully faded
+  const scrollY = window.scrollY || window.pageYOffset;
+  navOpacity.value = Math.max(0, 1 - scrollY / maxScroll);
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll, { passive: true });
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>
 
 <template>
-  <nav class="nav-container">
+  <nav class="nav-container" :style="{ opacity: navOpacity }">
     <div class="container flex items-center justify-between">
       <div class="nav-brand">
         <router-link to="/" class="brand-link" @click="closeMobileMenu">
@@ -425,14 +445,15 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 }
 
 .nav-container {
-  background-color: var(--color-black);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: white;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: var(--navbar-height);
   z-index: 1000;
+  transition: opacity 0.3s;
 }
 
 .container {
@@ -475,7 +496,7 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 }
 
 .nav-item {
-  color: var(--color-text-secondary);
+  color: #666666;
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s ease;
@@ -489,7 +510,7 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 
 .nav-item:hover,
 .nav-item.active {
-  color: var(--color-text);
+  color: #000000;
 }
 
 .dropdown-arrow {
@@ -521,11 +542,11 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 }
 
 .user-profile:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .user-name {
-  color: var(--color-text);
+  color: #000000;
   font-weight: 500;
 }
 
@@ -578,7 +599,7 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--color-black);
+  background: white;
   padding: 5rem 1.5rem 2rem;
   transform: translateX(100%);
   transition: transform 0.3s ease;
@@ -616,7 +637,7 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 }
 
 .mobile-nav-item {
-  color: var(--color-text);
+  color: #000000;
   text-decoration: none;
   font-size: 1.25rem;
   font-weight: 500;
@@ -631,6 +652,9 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
   overflow: hidden;
   transition: max-height 0.3s ease;
   padding-left: 1rem;
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: var(--border-radius-small);
+  margin: 0.5rem 0;
 }
 
 .mobile-dropdown-menu.show {
@@ -640,7 +664,7 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 .mobile-dropdown-item {
   display: block;
   padding: 0.75rem 0;
-  color: var(--color-text-secondary);
+  color: #666666;
   text-decoration: none;
   font-size: 1rem;
   border: none;
@@ -665,7 +689,7 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 }
 
 .mobile-dropdown-item:hover {
-  color: var(--color-text);
+  color: #000000;
 }
 
 .mobile-nav-actions {
@@ -752,18 +776,18 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 .dropdown-invites {
   max-height: 400px;
   overflow-y: auto;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
   margin-top: 0.5rem;
   padding-top: 0.5rem;
 }
 
 .dropdown-menu {
   position: absolute;
-  top: calc(100% + 8px); /* Position below the nav item */
+  top: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%); /* Center the dropdown */
-  background-color: var(--color-black-90);
-  border: 1px solid var(--color-border);
+  transform: translateX(-50%);
+  background-color: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--border-radius);
   padding: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -771,7 +795,7 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
   z-index: 1001;
   opacity: 0;
   visibility: hidden;
-  transform: translateX(-50%) translateY(-10px); /* Start slightly up */
+  transform: translateX(-50%) translateY(-10px);
   transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
 }
 
@@ -794,7 +818,7 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 .dropdown-item {
   display: block;
   padding: 0.75rem 1rem;
-  color: var(--color-text-secondary);
+  color: #666666;
   text-decoration: none;
   white-space: nowrap;
   border-radius: var(--border-radius-small);
@@ -807,8 +831,8 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 }
 
 .dropdown-item:hover {
-  background-color: var(--color-black-80);
-  color: var(--color-text);
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #000000;
 }
 
 .dropdown-item-primary {
@@ -862,15 +886,15 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
 }
 
 .mobile-dropdown-invites {
-   border-top: 1px solid var(--color-border);
+   border-top: 1px solid rgba(0, 0, 0, 0.1);
    margin: 0.5rem 0;
    padding: 0.5rem 0;
 }
 
 .mobile-invites-header {
-    color: var(--color-text-secondary);
+    color: #666666;
     font-size: 0.8rem;
-    padding: 0 0 0.5rem 1rem; /* Match dropdown item padding */
+    padding: 0 0 0.5rem 1rem;
     text-transform: uppercase;
 }
 </style>
