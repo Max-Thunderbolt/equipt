@@ -24,12 +24,6 @@ const routes = [
     component: () => import('../views/ProjectDetails.vue')
   },
   {
-    path: '/files',
-    name: 'Files',
-    component: () => import('../views/FilesPage.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
     path: '/explore',
     name: 'Explore',
     component: () => import('../views/ExplorePage.vue')

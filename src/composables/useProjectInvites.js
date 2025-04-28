@@ -266,7 +266,7 @@ const fetchUserInvites = async () => {
       // Start a transaction
       const { data: invite, error: fetchError } = await supabase
         .from(TABLES.PROJECT_INVITES)
-        .select('*')
+        .select('*, project:project_id (id, name)')
         .eq('id', inviteId)
         .single()
       
@@ -291,14 +291,35 @@ const fetchUserInvites = async () => {
       
       if (collabError) throw collabError
       
+      // Create a notification for the project owner
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: invite.invited_by,
+          type: 'invite_accepted',
+          title: 'Invite Accepted',
+          message: `Your invite to join ${invite.project.name} has been accepted`,
+          data: {
+            project_id: invite.project_id
+          }
+        })
+
+      if (notificationError) console.error('Error creating notification:', notificationError)
+      
       // Refresh invites
       await fetchUserInvites()
       
-      return true
+      return {
+        success: true,
+        projectId: invite.project_id
+      }
     } catch (err) {
       console.error('Error accepting project invite:', err)
       error.value = err.message
-      return false
+      return {
+        success: false,
+        projectId: null
+      }
     } finally {
       loading.value = false
     }

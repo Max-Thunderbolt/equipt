@@ -151,189 +151,193 @@
     </button>
     
     <!-- Role Assignment Modal -->
-    <div v-if="showRoleModal" class="modal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>Change Role</h3>
-          <button class="close-button" @click="closeRoleModal">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="selected-user">
-            <div class="user-avatar">
-              <img 
-                v-if="selectedCollaborator?.user?.avatar_url" 
-                :src="selectedCollaborator.user.avatar_url" 
-                :alt="selectedCollaborator.user.display_name"
-              />
-              <span v-else class="avatar-placeholder">
-                {{ selectedCollaborator?.user?.display_name?.[0] || '?' }}
-              </span>
-            </div>
-            <div class="user-info">
-              <div class="user-name">{{ selectedCollaborator?.user?.display_name || 'Unknown' }}</div>
-              <div class="current-role">Current role: {{ selectedCollaborator?.role || 'None' }}</div>
-            </div>
+    <teleport to="body">
+      <div v-if="showRoleModal" class="modal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Change Role</h3>
+            <button class="close-button" @click="closeRoleModal">×</button>
           </div>
-          
-          <div class="role-selector">
-            <label>Select new role:</label>
-            <div class="role-options">
-              <label class="role-option">
-                <input 
-                  type="radio" 
-                  v-model="newRole" 
-                  value="viewer"
-                >
-                <span>Viewer</span>
-                <span class="role-description">Can view project content</span>
-              </label>
-              <label class="role-option">
-                <input 
-                  type="radio" 
-                  v-model="newRole" 
-                  value="editor"
-                >
-                <span>Editor</span>
-                <span class="role-description">Can edit project content</span>
-              </label>
-              <label class="role-option">
-                <input 
-                  type="radio" 
-                  v-model="newRole" 
-                  value="admin"
-                >
-                <span>Admin</span>
-                <span class="role-description">Can manage collaborators</span>
-              </label>
+          <div class="modal-body">
+            <div class="selected-user">
+              <div class="user-avatar">
+                <img 
+                  v-if="selectedCollaborator?.user?.avatar_url" 
+                  :src="selectedCollaborator.user.avatar_url" 
+                  :alt="selectedCollaborator.user.display_name"
+                />
+                <span v-else class="avatar-placeholder">
+                  {{ selectedCollaborator?.user?.display_name?.[0] || '?' }}
+                </span>
+              </div>
+              <div class="user-info">
+                <div class="user-name">{{ selectedCollaborator?.user?.display_name || 'Unknown' }}</div>
+                <div class="current-role">Current role: {{ selectedCollaborator?.role || 'None' }}</div>
+              </div>
             </div>
-          </div>
-          
-          <div class="modal-actions">
-            <button class="btn-secondary" @click="closeRoleModal">Cancel</button>
-            <button 
-              class="btn-primary" 
-              @click="updateRole"
-              :disabled="!newRole || newRole === selectedCollaborator?.role"
-            >
-              Update Role
-            </button>
+            
+            <div class="role-selector">
+              <label>Select new role:</label>
+              <div class="role-options">
+                <label class="role-option">
+                  <input 
+                    type="radio" 
+                    v-model="newRole" 
+                    value="viewer"
+                  >
+                  <span>Viewer</span>
+                  <span class="role-description">Can view project content</span>
+                </label>
+                <label class="role-option">
+                  <input 
+                    type="radio" 
+                    v-model="newRole" 
+                    value="editor"
+                  >
+                  <span>Editor</span>
+                  <span class="role-description">Can edit project content</span>
+                </label>
+                <label class="role-option">
+                  <input 
+                    type="radio" 
+                    v-model="newRole" 
+                    value="admin"
+                  >
+                  <span>Admin</span>
+                  <span class="role-description">Can manage collaborators</span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="modal-actions">
+              <button class="btn-secondary" @click="closeRoleModal">Cancel</button>
+              <button 
+                class="btn-primary" 
+                @click="updateRole"
+                :disabled="!newRole || newRole === selectedCollaborator?.role"
+              >
+                Update Role
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </teleport>
 
     <!-- Invite Collaborator Modal -->
-    <div v-if="showInviteModal" class="modal">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>Invite Collaborator</h3>
-          <button class="close-button" @click="closeInviteModal">×</button>
-        </div>
-        <div class="modal-body">
-          <div class="search-section">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search users..."
-              class="search-input"
-              @input="handleSearch"
-            />
-            <div v-if="showSearchResults" class="search-results">
-              <div
-                v-for="user in searchResults"
-                :key="user.id"
-                class="search-result-item"
-                @click="selectUser(user)"
-              >
-                <div class="user-avatar">
-                  <img
-                    v-if="user.avatar_url"
-                    :src="user.avatar_url"
-                    :alt="user.display_name"
-                    referrerpolicy="no-referrer"
-                  />
-                  <span v-else class="avatar-placeholder">
-                    {{ user.display_name?.[0] || '?' }}
-                  </span>
-                </div>
-                <div class="user-info">
-                  <div class="user-name">{{ user.display_name }}</div>
-                  <div class="user-email">{{ user.email }}</div>
+    <teleport to="body">
+      <div v-if="showInviteModal" class="modal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Invite Collaborator</h3>
+            <button class="close-button" @click="closeInviteModal">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="search-section">
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search users..."
+                class="search-input"
+                @input="handleSearch"
+              />
+              <div v-if="showSearchResults" class="search-results">
+                <div
+                  v-for="user in searchResults"
+                  :key="user.id"
+                  class="search-result-item"
+                  @click="selectUser(user)"
+                >
+                  <div class="user-avatar">
+                    <img
+                      v-if="user.avatar_url"
+                      :src="user.avatar_url"
+                      :alt="user.display_name"
+                      referrerpolicy="no-referrer"
+                    />
+                    <span v-else class="avatar-placeholder">
+                      {{ user.display_name?.[0] || '?' }}
+                    </span>
+                  </div>
+                  <div class="user-info">
+                    <div class="user-name">{{ user.display_name }}</div>
+                    <div class="user-email">{{ user.email }}</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div v-if="selectedUser" class="selected-user">
-            <div class="user-avatar">
-              <img
-                v-if="selectedUser.avatar_url"
-                :src="selectedUser.avatar_url"
-                :alt="selectedUser.display_name"
-                referrerpolicy="no-referrer"
-              />
-              <span v-else class="avatar-placeholder">
-                {{ selectedUser.display_name?.[0] || '?' }}
-              </span>
+            <div v-if="selectedUser" class="selected-user">
+              <div class="user-avatar">
+                <img
+                  v-if="selectedUser.avatar_url"
+                  :src="selectedUser.avatar_url"
+                  :alt="selectedUser.display_name"
+                  referrerpolicy="no-referrer"
+                />
+                <span v-else class="avatar-placeholder">
+                  {{ selectedUser.display_name?.[0] || '?' }}
+                </span>
+              </div>
+              <div class="user-info">
+                <div class="user-name">{{ selectedUser.display_name }}</div>
+                <div class="user-email">{{ selectedUser.email }}</div>
+              </div>
+              <button class="remove-selection" @click="selectedUser = null">×</button>
             </div>
-            <div class="user-info">
-              <div class="user-name">{{ selectedUser.display_name }}</div>
-              <div class="user-email">{{ selectedUser.email }}</div>
-            </div>
-            <button class="remove-selection" @click="selectedUser = null">×</button>
-          </div>
 
-          <div class="role-selector">
-            <label>Select role:</label>
-            <div class="role-options">
-              <label class="role-option">
-                <input 
-                  type="radio" 
-                  v-model="selectedRole" 
-                  value="viewer"
-                >
-                <span>Viewer</span>
-                <span class="role-description">Can view project content</span>
-              </label>
-              <label class="role-option">
-                <input 
-                  type="radio" 
-                  v-model="selectedRole" 
-                  value="editor"
-                >
-                <span>Editor</span>
-                <span class="role-description">Can edit project content</span>
-              </label>
-              <label class="role-option">
-                <input 
-                  type="radio" 
-                  v-model="selectedRole" 
-                  value="admin"
-                >
-                <span>Admin</span>
-                <span class="role-description">Can manage collaborators</span>
-              </label>
+            <div class="role-selector">
+              <label>Select role:</label>
+              <div class="role-options">
+                <label class="role-option">
+                  <input 
+                    type="radio" 
+                    v-model="selectedRole" 
+                    value="viewer"
+                  >
+                  <span>Viewer</span>
+                  <span class="role-description">Can view project content</span>
+                </label>
+                <label class="role-option">
+                  <input 
+                    type="radio" 
+                    v-model="selectedRole" 
+                    value="editor"
+                  >
+                  <span>Editor</span>
+                  <span class="role-description">Can edit project content</span>
+                </label>
+                <label class="role-option">
+                  <input 
+                    type="radio" 
+                    v-model="selectedRole" 
+                    value="admin"
+                  >
+                  <span>Admin</span>
+                  <span class="role-description">Can manage collaborators</span>
+                </label>
+              </div>
             </div>
-          </div>
 
-          <div class="modal-actions">
-            <button class="btn-secondary" @click="closeInviteModal">Cancel</button>
-            <button 
-              class="btn-primary" 
-              @click="sendInvite"
-              :disabled="!selectedUser || !selectedRole || sendingInvite"
-            >
-              Send Invite
-            </button>
+            <div class="modal-actions">
+              <button class="btn-secondary" @click="closeInviteModal">Cancel</button>
+              <button 
+                class="btn-primary" 
+                @click="sendInvite"
+                :disabled="!selectedUser || !selectedRole || sendingInvite"
+              >
+                Send Invite
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </teleport>
   </nav>
 </template>
 
 <script setup>
-import { defineProps, defineEmits, computed, ref } from 'vue'
+import { defineProps, defineEmits, computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '../../composables/useAuth'
 import { useUserSearch } from '../../composables/useUserSearch'
 import { useProjectInvites } from '../../composables/useProjectInvites'
@@ -396,11 +400,24 @@ const selectedCollaborator = ref(null)
 const newRole = ref('')
 const updatingRole = ref(false)
 
+// Utility to update modal classes
+function updateModalClasses() {
+  const nav = document.querySelector('.project-side-nav');
+  if (showRoleModal.value || showInviteModal.value) {
+    document.body.classList.add('modal-open');
+    if (nav) nav.classList.add('modal-active');
+  } else {
+    document.body.classList.remove('modal-open');
+    if (nav) nav.classList.remove('modal-active');
+  }
+}
+
 // Open role modal
 const openRoleModal = (collaborator) => {
   selectedCollaborator.value = collaborator
   newRole.value = collaborator.role
   showRoleModal.value = true
+  updateModalClasses()
 }
 
 // Close role modal
@@ -408,6 +425,7 @@ const closeRoleModal = () => {
   showRoleModal.value = false
   selectedCollaborator.value = null
   newRole.value = ''
+  updateModalClasses()
 }
 
 // Update collaborator role
@@ -475,6 +493,7 @@ const selectUser = (user) => {
 // Open invite modal
 const openInviteModal = () => {
   showInviteModal.value = true
+  updateModalClasses()
 }
 
 // Close invite modal
@@ -484,6 +503,7 @@ const closeInviteModal = () => {
   selectedRole.value = 'viewer'
   searchQuery.value = ''
   showSearchResults.value = false
+  updateModalClasses()
 }
 
 // Send invite
@@ -511,6 +531,22 @@ const sendInvite = async () => {
 
       if (updateError) console.error('Error creating update record:', updateError)
       
+      // Create a notification for the invited user
+      const { error: notificationError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: selectedUser.value.id,
+          type: 'project_invite',
+          title: 'New Project Invite',
+          message: `You've been invited to join ${props.projectName} as ${selectedRole.value}`,
+          data: {
+            project_id: props.projectId,
+            invite_id: invite.id
+          }
+        })
+
+      if (notificationError) console.error('Error creating notification:', notificationError)
+      
       // Close modal
       closeInviteModal()
     }
@@ -522,6 +558,19 @@ const sendInvite = async () => {
 }
 
 const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
+
+onMounted(() => {
+  window.addEventListener('close-all-modals', closeAllModals);
+});
+onUnmounted(() => {
+  window.removeEventListener('close-all-modals', closeAllModals);
+});
+
+function closeAllModals() {
+  showRoleModal.value = false;
+  showInviteModal.value = false;
+  updateModalClasses();
+}
 </script>
 
 <style scoped>
@@ -722,13 +771,59 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
 }
 
 /* Modal styles */
-/* .modal { ... }
-.modal-content { ... }
-.modal-header { ... }
-.modal-header h3 { ... }
-.close-button { ... }
-.close-button:hover { ... }
-.modal-body { ... } */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.98);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: auto;
+}
+
+/* Prevent background scroll and interaction when modal is open */
+body.modal-open {
+  overflow: hidden !important;
+}
+
+/* When modal is open, prevent pointer events on nav except modal */
+.project-side-nav.modal-active {
+  pointer-events: none;
+}
+.project-side-nav .modal,
+.project-side-nav .modal * {
+  pointer-events: auto;
+}
+
+.modal-content {
+  background: var(--color-black-100);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.modal-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
 
 /* Keep selected-user styles scoped for now as they are specific */
 .selected-user {
@@ -781,47 +876,94 @@ const emit = defineEmits(['section-change', 'delete-project', 'role-updated'])
 
 .role-selector label {
   display: block;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
   font-weight: 500;
 }
 
 .role-options {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .role-option {
   display: flex;
   flex-direction: column;
-  padding: 0.75rem;
+  padding: 1.25rem 1rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.role-option:hover {
   background: var(--color-black-90);
 }
 
-.role-option input {
-  margin-right: 0.5rem;
+.role-option:hover {
+  background: var(--color-black-80);
+  border-color: var(--color-border-hover);
+}
+
+.role-option input[type="radio"] {
+  margin-bottom: 0.5rem;
+  margin-right: 0.75rem;
 }
 
 .role-option span:first-of-type {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
 }
 
 .role-description {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   color: var(--color-text-secondary);
+  line-height: 1.4;
+  margin-top: 0.5rem;
 }
 
-/* Modal actions moved to layout.css */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
 
-/* Base Button Styles moved to forms.css */
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  background: var(--color-black-80);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-black-70);
+  border-color: var(--color-border-hover);
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  background: var(--color-primary);
+  border: none;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn-primary:disabled {
+  background: var(--color-black-60);
+  cursor: not-allowed;
+}
 
 .project-description-container {
   margin-top: 8px;
