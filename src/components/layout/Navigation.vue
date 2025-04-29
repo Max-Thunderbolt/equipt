@@ -9,6 +9,7 @@ import AuthModal from '../modals/AuthModal.vue'
 import ProjectInvites from '../project/ProjectInvites.vue'
 import { supabase } from '../../supabase/config'
 import { useRouter } from 'vue-router'
+import { useNavBar } from '../../composables/useNavBar'
 
 const { user, session } = useAuth()
 const { profile, fetchProfile } = useProfile()
@@ -22,6 +23,7 @@ const {
   declineInvite
 } = useProjectInvites()
 const router = useRouter()
+const { navBarOpacity, setNavBarOpacity, dynamicNavBarHeight, setNavBarHeight, DEFAULT_NAVBAR_HEIGHT } = useNavBar()
 
 // Mobile menu state
 const isMobileMenuOpen = ref(false)
@@ -195,16 +197,18 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
   }
 }
 
-const navOpacity = ref(1);
-
 function handleScroll() {
   const maxScroll = 200; // px after which nav is fully faded
   const scrollY = window.scrollY || window.pageYOffset;
-  navOpacity.value = Math.max(0, 1 - scrollY / maxScroll);
+  const opacity = Math.max(0, 1 - scrollY / maxScroll);
+  setNavBarOpacity(opacity)
+  setNavBarHeight(dynamicNavBarHeight.value)
 }
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true });
+  // Set initial height
+  setNavBarHeight(dynamicNavBarHeight.value)
 });
 
 onUnmounted(() => {
@@ -213,7 +217,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <nav class="nav-container" :style="{ opacity: navOpacity }">
+  <nav class="nav-container" :style="{ opacity: navBarOpacity, height: dynamicNavBarHeight + 'px' }">
     <div class="container flex items-center justify-between">
       <div class="nav-brand">
         <router-link to="/" class="brand-link" @click="closeMobileMenu">
