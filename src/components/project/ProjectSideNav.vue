@@ -4,9 +4,16 @@
     <div v-if="isMobile && isMobileNavOpen" class="mobile-nav-overlay" @click="handleOverlayClick" aria-label="Close navigation" tabindex="0"></div>
     <nav :class="['project-side-nav', { 'mobile-open': isMobileNavOpen }]" :aria-hidden="isMobile && !isMobileNavOpen" :style="{ top: navBarHeight + 'px' }">
       <!-- Hamburger for mobile -->
-      <button class="mobile-nav-toggle" @click="$emit('toggle-nav')" aria-label="Open navigation" v-if="isMobile && !isMobileNavOpen" :style="{ top: navBarHeight + 16 + 'px' }">
-        <span class="hamburger"></span>
+      <button 
+        class="mobile-nav-toggle" 
+        @click="$emit('toggle-nav')" 
+        aria-label="Open navigation" 
+        v-if="isMobile && !isMobileNavOpen && !isNavigationMenuOpen" 
+        :style="{ top: navBarHeight + 16 + 'px' }"
+      >
+        <img :src="blackArrow" alt="Open menu" style="width: 32px; height: 32px; object-fit: contain;" />
       </button>
+      
       <div class="nav-section" v-show="!isMobile || isMobileNavOpen">
         <div class="nav-header">
           <router-link :to="{ name: 'Projects' }" class="back-link">
@@ -83,7 +90,7 @@
       </div>
 
       <div class="nav-section">
-        <div class="section-title">Project Team</div>
+        <div class="section-title">{{ projectName }} Members ({{ collaborators.length + 1 }})</div>
         <div class="team-section">
           <!-- Project Owner -->
           <div class="team-member owner">
@@ -143,7 +150,7 @@
             @click="openInviteModal"
           >
             <span class="icon">+</span>
-            <span>Invite Collaborator</span>
+            <span>Invite Member</span>
           </button>
         </div>
       </div>
@@ -202,7 +209,7 @@
                       value="editor"
                     >
                     <span>Editor</span>
-                    <span class="role-description">Can edit project content</span>
+                    <span class="role-description"> Can edit project content</span>
                   </label>
                   <label class="role-option">
                     <input 
@@ -211,7 +218,7 @@
                       value="admin"
                     >
                     <span>Admin</span>
-                    <span class="role-description">Can manage collaborators</span>
+                    <span class="role-description"> Can manage members</span>
                   </label>
                 </div>
               </div>
@@ -236,7 +243,7 @@
         <div v-if="showInviteModal" class="modal">
           <div class="modal-content" @click.stop>
             <div class="modal-header">
-              <h3>Invite Collaborator</h3>
+              <h3>Invite Member</h3>
               <button class="close-button" @click="closeInviteModal">×</button>
             </div>
             <div class="modal-body">
@@ -302,8 +309,8 @@
                       v-model="selectedRole" 
                       value="viewer"
                     >
-                    <span>Viewer</span>
-                    <span class="role-description">Can view project content</span>
+                    <span>Viewer </span>
+                    <span class="role-description"> Can view project content</span>
                   </label>
                   <label class="role-option">
                     <input 
@@ -312,7 +319,7 @@
                       value="editor"
                     >
                     <span>Editor</span>
-                    <span class="role-description">Can edit project content</span>
+                    <span class="role-description"> Can edit project content</span>
                   </label>
                   <label class="role-option">
                     <input 
@@ -321,7 +328,7 @@
                       value="admin"
                     >
                     <span>Admin</span>
-                    <span class="role-description">Can manage collaborators</span>
+                    <span class="role-description"> Can manage collaborators</span>
                   </label>
                 </div>
               </div>
@@ -350,6 +357,7 @@ import { useAuth } from '../../composables/useAuth'
 import { useUserSearch } from '../../composables/useUserSearch'
 import { useProjectInvites } from '../../composables/useProjectInvites'
 import { supabase } from '../../supabase/config'
+import blackArrow from '../../assets/black_arrow.svg'
 
 const props = defineProps({
   projectName: {
@@ -387,6 +395,10 @@ const props = defineProps({
   navBarHeight: {
     type: Number,
     default: 72
+  },
+  isNavigationMenuOpen: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -597,7 +609,7 @@ const handleOverlayClick = () => {
 .project-side-nav {
   width: 280px;
   height: calc(100vh - var(--navbar-height, 72px));
-  background: var(--color-black-95); /* Primary color (60%) */
+  background: var(--color-black-95);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -607,7 +619,36 @@ const handleOverlayClick = () => {
   top: var(--navbar-height, 72px);
   left: 0;
   transition: left 0.3s cubic-bezier(.4,0,.2,1), box-shadow 0.3s;
-  z-index: 1002;
+  z-index: 1000;
+}
+
+/* Make team section scrollable */
+.team-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Add custom scrollbar styles */
+.team-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.team-section::-webkit-scrollbar-track {
+  background: var(--color-black-90);
+  border-radius: 3px;
+}
+
+.team-section::-webkit-scrollbar-thumb {
+  background: var(--color-black-70);
+  border-radius: 3px;
+}
+
+.team-section::-webkit-scrollbar-thumb:hover {
+  background: var(--color-black-60);
 }
 
 .nav-section {
@@ -698,12 +739,6 @@ const handleOverlayClick = () => {
   margin-bottom: 8px;
 }
 
-.team-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 .team-member {
   display: flex;
   align-items: center;
@@ -775,8 +810,9 @@ const handleOverlayClick = () => {
   color: var(--color-primary);
 }
 
+/* Keep the delete button fixed at the bottom */
 .delete-project-btn {
-  margin-top: auto;
+  margin: 0;
   padding: 12px;
   border-radius: 8px;
   background: red;
@@ -785,6 +821,7 @@ const handleOverlayClick = () => {
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  width: 100%;
 }
 
 .delete-project-btn:hover {
@@ -1137,7 +1174,17 @@ body.modal-open {
     box-shadow: 2px 0 16px rgba(0,0,0,0.4);
     padding: 24px 12px;
     transition: left 0.3s cubic-bezier(.4,0,.2,1), box-shadow 0.3s;
+    z-index: 1000;
   }
+  
+  .team-section {
+    max-height: 250px;
+  }
+  
+  .nav-section {
+    padding: 24px 12px;
+  }
+  
   .project-side-nav.mobile-open {
     left: 0;
   }

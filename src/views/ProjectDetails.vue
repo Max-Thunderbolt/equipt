@@ -5,6 +5,7 @@ import { useAuth } from '../composables/useAuth'
 import { useProjects } from '../composables/useProjects'
 import { useUserSearch } from '../composables/useUserSearch'
 import { useFileStorage } from '../composables/useFileStorage'
+import { useNavigation } from '../composables/useNavigation'
 import { supabase } from '../supabase/config'
 import FilesGrid from '../components/ui/FilesGrid.vue'
 import ProjectSideNav from '../components/project/ProjectSideNav.vue'
@@ -29,6 +30,7 @@ const { hasProjectAccess } = useProjects()
 const { searchResults, loading: userSearchLoading, error: userSearchError, searchUsers } = useUserSearch()
 const { uploadFile, downloadFile, getFileUrl, updateMissingFileUrls, error: fileError, uploading: fileUploading, progress: fileUploadProgress, deleteFile } = useFileStorage()
 const { navBarHeight } = useNavBar()
+const { isMobileMenuOpen } = useNavigation()
 
 // Add formatFileSize function
 const formatFileSize = (bytes) => {
@@ -621,6 +623,7 @@ onUnmounted(() => {
         :is-mobile-nav-open="isMobileNavOpen"
         @toggle-nav="handleNavToggle"
         :nav-bar-height="navBarHeight"
+        :is-navigation-menu-open="isMobileMenuOpen"
       />
       <div class="pinboard-container" :class="{ 'full-width-mobile': isMobile && !isMobileNavOpen }" :style="{ paddingTop: navBarHeight + 'px' }">
         <Pinboard :project-id="project.id" />
@@ -644,6 +647,7 @@ onUnmounted(() => {
         :is-mobile-nav-open="isMobileNavOpen"
         @toggle-nav="handleNavToggle"
         :nav-bar-height="navBarHeight"
+        :is-navigation-menu-open="isMobileMenuOpen"
       />
 
       <div class="project-content" :class="{ 'full-width-mobile': isMobile && !isMobileNavOpen }" :style="{ paddingTop: navBarHeight + 'px' }">
