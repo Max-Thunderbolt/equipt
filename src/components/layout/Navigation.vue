@@ -4,11 +4,14 @@ import { useAuth } from '../../composables/useAuth'
 import { useProfile } from '../../composables/useProfile'
 import { useProjects } from '../../composables/useProjects'
 import { useProjectInvites } from '../../composables/useProjectInvites'
+import { useNavigation } from '../../composables/useNavigation'
 import NewProjectModal from '../modals/NewProjectModal.vue'
 import AuthModal from '../modals/AuthModal.vue'
 import ProjectInvites from '../project/ProjectInvites.vue'
 import { supabase } from '../../supabase/config'
 import { useRouter } from 'vue-router'
+import { useNavBar } from '../../composables/useNavBar'
+import blackArrow from '../../assets/black_arrow.svg'
 
 const { user, session } = useAuth()
 const { profile, fetchProfile } = useProfile()
@@ -22,17 +25,8 @@ const {
   declineInvite
 } = useProjectInvites()
 const router = useRouter()
-
-// Mobile menu state
-const isMobileMenuOpen = ref(false)
-
-const toggleMobileMenu = () => {
-  isMobileMenuOpen.value = !isMobileMenuOpen.value
-}
-
-const closeMobileMenu = () => {
-  isMobileMenuOpen.value = false
-}
+const { navBarOpacity, setNavBarOpacity, dynamicNavBarHeight, setNavBarHeight, DEFAULT_NAVBAR_HEIGHT, navBarHeight } = useNavBar()
+const { isMobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useNavigation()
 
 // Watch for user changes to fetch profile AND invites
 watch(() => user.value?.id, async (newUserId) => {
@@ -106,8 +100,14 @@ onMounted(() => {
     const navElement = document.querySelector('.nav-container')
     if (navElement && !navElement.contains(event.target)) {
       closeDropdowns()
+      closeMobileMenu()
     }
   })
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeDropdowns)
+  document.removeEventListener('click', closeMobileMenu)
 })
 
 const isNewProjectModalOpen = ref(false)
@@ -195,16 +195,18 @@ const onDeclineInvite = async (inviteId, onSuccess) => {
   }
 }
 
-const navOpacity = ref(1);
-
 function handleScroll() {
   const maxScroll = 200; // px after which nav is fully faded
   const scrollY = window.scrollY || window.pageYOffset;
-  navOpacity.value = Math.max(0, 1 - scrollY / maxScroll);
+  const opacity = Math.max(0, 1 - scrollY / maxScroll);
+  setNavBarOpacity(opacity)
+  setNavBarHeight(dynamicNavBarHeight.value)
 }
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true });
+  // Set initial height
+  setNavBarHeight(dynamicNavBarHeight.value)
 });
 
 onUnmounted(() => {
@@ -213,7 +215,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <nav class="nav-container" :style="{ opacity: navOpacity }">
+  <nav class="nav-container" :style="{ opacity: navBarOpacity, height: dynamicNavBarHeight + 'px' }">
     <div class="container flex items-center justify-between">
       <div class="nav-brand">
         <router-link to="/" class="brand-link" @click="closeMobileMenu">
@@ -222,8 +224,14 @@ onUnmounted(() => {
       </div>
       
       <!-- Mobile menu button -->
-      <button class="mobile-menu-btn" @click="toggleMobileMenu">
-        <span class="menu-icon"></span>
+      <button 
+        class="mobile-menu-btn" 
+        @click="toggleMobileMenu" 
+        :style="{ top: '16px', right: '16px' }"
+        v-show="!isMobileMenuOpen"
+        aria-label="Open navigation menu"
+      >
+        <img :src="blackArrow" alt="Open menu" style="width: 32px; height: 32px; object-fit: contain;" />
       </button>
       
       <!-- Desktop navigation -->
@@ -347,6 +355,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Mobile menu -->
+    <div class="mobile-menu" :class="{ 'is-open': isMobileMenuOpen }" @click="closeMobileMenu"></div>
     <div class="mobile-menu" :class="{ 'is-open': isMobileMenuOpen }">
       <div class="mobile-nav-items">
          <template v-for="item in displayNavItems" :key="item.name">
@@ -559,7 +568,7 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
   position: relative;
-  z-index: 101;
+  z-index: 2001;
 }
 
 .menu-icon {
@@ -591,38 +600,47 @@ onUnmounted(() => {
   bottom: -8px;
 }
 
-/* Mobile menu */
+/* Mobile menu as sidebar */
 .mobile-menu {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 80vw;
+  max-width: 320px;
+  background: white;
+  padding: 5rem 1.5rem 2rem;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 2001;
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.mobile-menu.is-open {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.mobile-menu-overlay {
   display: none;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: white;
-  padding: 5rem 1.5rem 2rem;
-  transform: translateX(100%);
-  transition: transform 0.3s ease;
-  z-index: 100;
-  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
-.mobile-menu.is-open {
-  transform: translateX(0);
-}
-
-.mobile-menu.is-open + .mobile-menu-btn .menu-icon {
-  background: transparent;
-}
-
-.mobile-menu.is-open + .mobile-menu-btn .menu-icon::before {
-  transform: rotate(45deg);
-  top: 0;
-}
-
-.mobile-menu.is-open + .mobile-menu-btn .menu-icon::after {
-  transform: rotate(-45deg);
-  bottom: 0;
+.mobile-menu.is-open ~ .mobile-menu-overlay {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .mobile-nav-items {
@@ -726,6 +744,44 @@ onUnmounted(() => {
 
   .mobile-menu-btn {
     display: block;
+    position: fixed;
+    right: 16px;
+    /* top is set dynamically via :style */
+    z-index: 2001;
+    background: transparent;
+    border: none;
+    width: 44px;
+    height: 44px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    padding: 0;
+  }
+
+  .menu-icon {
+    position: relative;
+    display: block;
+    width: 28px;
+    height: 3px;
+    background: #222;
+    border-radius: 2px;
+    margin: 0 auto;
+    transition: all 0.3s ease;
+  }
+  .menu-icon::before,
+  .menu-icon::after {
+    content: '';
+    position: absolute;
+    width: 28px;
+    height: 3px;
+    background: #222;
+    border-radius: 2px;
+    left: 0;
+    transition: all 0.3s ease;
+  }
+  .menu-icon::before {
+    top: -9px;
+  }
+  .menu-icon::after {
+    top: 9px;
   }
 
   .mobile-menu {
@@ -896,5 +952,19 @@ onUnmounted(() => {
     font-size: 0.8rem;
     padding: 0 0 0.5rem 1rem;
     text-transform: uppercase;
+}
+
+.mobile-menu.is-open + .mobile-menu-btn .menu-icon {
+  background: transparent;
+}
+
+.mobile-menu.is-open + .mobile-menu-btn .menu-icon::before {
+  transform: rotate(45deg);
+  top: 0;
+}
+
+.mobile-menu.is-open + .mobile-menu-btn .menu-icon::after {
+  transform: rotate(-45deg);
+  bottom: 0;
 }
 </style>

@@ -19,6 +19,12 @@ const pins = ref([])
 const loading = ref(true)
 const error = ref(null)
 
+// Infinite scroll state
+const page = ref(0)
+const pageSize = 20
+const allLoaded = ref(false)
+const loadingMore = ref(false)
+
 // Modal states
 const isAddPinModalOpen = ref(false)
 const isEditPinModalOpen = ref(false)
@@ -115,17 +121,28 @@ const handleImageError = async (event, filePath) => {
   event.target.parentNode.appendChild(placeholder)
 }
 
-// Fetch pins
-const fetchPins = async () => {
+// Fetch pins (paginated)
+const fetchPins = async (isInitial = false) => {
   try {
-    loading.value = true
+    if (isInitial) {
+      page.value = 0
+      allLoaded.value = false
+      pins.value = []
+    }
+    if (allLoaded.value) return
+    loading.value = isInitial
+    loadingMore.value = !isInitial
     error.value = null
+
+    const from = page.value * pageSize
+    const to = from + pageSize - 1
 
     const { data: pinsData, error: pinsError } = await supabase
       .from(TABLES.PINS)
       .select('*')
       .eq('project_id', props.projectId)
       .order('created_at', { ascending: false })
+      .range(from, to)
 
     if (pinsError) throw pinsError
 
@@ -138,32 +155,46 @@ const fetchPins = async () => {
 
       if (profilesError) throw profilesError
 
-      pins.value = pinsData.map(pin => {
-        // Generate URL for image files
+      const newPins = pinsData.map(pin => {
         if (pin.type === PIN_TYPES.FILE && pin.file_data?.file_path && 
             pin.file_data?.name && pin.file_data.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
           pin.file_data.url = getPublicUrl(pin.file_data.file_path)
-          console.log('Image file data:', {
-            type: pin.type,
-            filePath: pin.file_data.file_path,
-            url: pin.file_data.url
-          })
         }
         return {
           ...initializePinPosition(pin),
           creator: profiles.find(profile => profile.id === pin.user_id) || null
         }
       })
+      if (isInitial) {
+        pins.value = newPins
+      } else {
+        pins.value = [...pins.value, ...newPins]
+      }
+      if (pinsData.length < pageSize) {
+        allLoaded.value = true
+      } else {
+        page.value++
+      }
     } else {
-      pins.value = []
+      if (isInitial) pins.value = []
+      allLoaded.value = true
     }
-
-    console.log('All pins:', pins.value)
   } catch (err) {
     console.error('Error fetching pins:', err)
     error.value = err.message || 'Failed to load pins'
   } finally {
     loading.value = false
+    loadingMore.value = false
+  }
+}
+
+// Infinite scroll handler
+const handleScroll = () => {
+  const container = pinsContainerRef.value
+  if (!container || loadingMore.value || allLoaded.value) return
+  const scrollThreshold = 200 // px from bottom
+  if (container.scrollHeight - container.scrollTop - container.clientHeight < scrollThreshold) {
+    fetchPins(false)
   }
 }
 
@@ -494,13 +525,62 @@ const handleMouseMove = (event) => {
   }
 }
 
+// Panning state
+const isPanning = ref(false)
+const panStart = ref({ x: 0, y: 0 })
+const scrollStart = ref({ left: 0, top: 0 })
+
+const startPan = (event) => {
+  if (event.target === event.currentTarget) {
+    isPanning.value = true;
+    panStart.value = { x: event.clientX, y: event.clientY };
+    const container = pinsContainerRef.value;
+    if (container) {
+      scrollStart.value = { left: container.scrollLeft, top: container.scrollTop };
+    }
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    event.preventDefault();
+  }
+};
+
+const onPan = (event) => {
+  if (!isPanning.value) return;
+  const container = pinsContainerRef.value;
+  if (container) {
+    const dx = event.clientX - panStart.value.x;
+    const dy = event.clientY - panStart.value.y;
+    container.scrollLeft = scrollStart.value.left - dx;
+    container.scrollTop = scrollStart.value.top - dy;
+  }
+};
+
+const endPan = () => {
+  isPanning.value = false;
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+};
+
 onMounted(() => {
-  fetchPins()
+  fetchPins(true)
   document.addEventListener('keydown', handleKeyDown)
+  if (pinsContainerRef.value) {
+    pinsContainerRef.value.addEventListener('scroll', handleScroll)
+    // Center the view on the board initially
+    pinsContainerRef.value.scrollLeft = (4000 - pinsContainerRef.value.clientWidth) / 2
+    pinsContainerRef.value.scrollTop = (4000 - pinsContainerRef.value.clientHeight) / 2
+  }
+  window.addEventListener('mousemove', onPan)
+  window.addEventListener('mouseup', endPan)
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeyDown)
+  if (pinsContainerRef.value) {
+    pinsContainerRef.value.removeEventListener('scroll', handleScroll)
+  }
+  window.removeEventListener('mousemove', onPan)
+  window.removeEventListener('mouseup', endPan)
 })
 </script>
 
@@ -514,9 +594,14 @@ onUnmounted(() => {
     <div 
       ref="pinsContainerRef"
       class="pins-container"
+      @scroll="handleScroll"
+      @mousedown="startPan"
       @mousemove="handleMouseMove"
       @click="handlePinPlacement"
+      style="width: 4000px; height: 4000px; min-width: 100vw; min-height: 100vh; background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 40px 40px; position: relative; overflow: auto;"
     >
+      <!-- Overlay for panning -->
+      <div v-if="isPanning" class="pan-overlay"></div>
       <!-- Pin Preview when placing -->
       <div 
         v-if="isPlacingPin"
@@ -539,119 +624,121 @@ onUnmounted(() => {
         {{ error }}
       </div>
 
-      <!-- Pins Container -->
-      <div v-else ref="containerRef" class="pins-container">
-        <div 
-          v-for="pin in pins" 
-          :key="pin.id" 
-          class="pin-card" 
-          :class="[pin.type, { 'is-dragging': isDragging && draggedPin?.id === pin.id }]"
-          :style="{ 
-            transform: `translate3d(${pin.position_x || 0}px, ${pin.position_y || 0}px, 0)`,
-            cursor: canModifyPin(pin) ? 'move' : 'default'
-          }"
-          @mousedown="startDrag($event, pin)"
-        >
-          <!-- Pin Header -->
-          <div class="pin-header">
-            <span class="pin-icon">
-              {{ pin.type === 'note' ? '📝' : pin.type === 'file' ? (pin.file_data?.name && pin.file_data.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? '🖼️' : '📎') : '🔗' }}
-            </span>
-            <h3 class="pin-title">{{ pin.title }}</h3>
-            <div v-if="canModifyPin(pin)" class="pin-actions">
-              <button 
-                v-if="pin.type === 'note'"
-                class="action-btn" 
-                @click.stop="openEditPinModal(pin)"
-                title="Edit"
-              >
-                ✏️
-              </button>
-              <button 
-                class="action-btn" 
-                @click.stop="deletePin(pin)"
-                title="Delete"
-              >
-                🗑️
-              </button>
-            </div>
-          </div>
-
-          <!-- Pin Content -->
-          <div class="pin-content">
-            <!-- Note Content -->
-            <p v-if="pin.type === 'note'" class="note-content">
-              {{ pin.content }}
-            </p>
-
-            <!-- File Content -->
-            <div v-else-if="pin.type === 'file'" class="file-content">
-              <!-- Image File -->
-              <div v-if="pin.file_data?.name && pin.file_data.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)" class="image-content">
-                <img 
-                  v-if="pin.file_data?.url && !pin.file_data.loadError" 
-                  :src="pin.file_data.url" 
-                  :alt="pin.title"
-                  class="pin-image"
-                  @load="() => console.log('Image loaded successfully:', pin.file_data.url)"
-                  @error="(e) => handleImageError(e, pin.file_data?.file_path)"
-                >
-                <div v-else class="image-placeholder">
-                  <span>{{ pin.file_data?.loadError ? 'Failed to load image' : 'Image not available' }}</span>
-                  <div v-if="pin.file_data" class="debug-info">
-                    <div>Path: {{ pin.file_data.file_path }}</div>
-                    <div v-if="pin.file_data.url">URL: {{ pin.file_data.url }}</div>
-                  </div>
-                </div>
-              </div>
-              <!-- Regular File -->
-              <div v-else>
-                <button class="download-btn" @click.stop="downloadPinFile(pin)">
-                  Download File
-                </button>
-                <span class="file-name">{{ pin.file_data?.name }}</span>
-              </div>
-            </div>
-
-            <!-- Link Content -->
-            <div v-else class="link-content">
-              <a 
-                :href="pin.content" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                class="link-url"
-                @click.stop
-              >
-                {{ pin.content }}
-              </a>
-              <img 
-                v-if="isImageUrl(pin.content)" 
-                :src="pin.content" 
-                :alt="pin.title"
-                class="link-image"
-                @error="error => { console.error('Link image load error:', error) }"
-              >
-            </div>
-          </div>
-
-          <!-- Pin Footer -->
-          <div class="pin-footer">
-            <div class="pin-creator">
-              <img 
-                v-if="pin.creator?.avatar_url"
-                :src="pin.creator.avatar_url"
-                :alt="pin.creator?.display_name"
-                class="creator-avatar"
-              >
-              <span v-else class="creator-initial">
-                {{ pin.creator?.display_name?.[0] || '?' }}
-              </span>
-              <span class="creator-name">{{ pin.creator?.display_name }}</span>
-            </div>
-            <span class="pin-date">{{ new Date(pin.created_at).toLocaleDateString() }}</span>
+      <!-- Pins -->
+      <div 
+        v-for="pin in pins" 
+        :key="pin.id" 
+        class="pin-card" 
+        :class="[pin.type, { 'is-dragging': isDragging && draggedPin?.id === pin.id }]"
+        :style="{ 
+          transform: `translate3d(${pin.position_x || 0}px, ${pin.position_y || 0}px, 0)`,
+          cursor: canModifyPin(pin) ? 'move' : 'default'
+        }"
+        @mousedown="startDrag($event, pin)"
+      >
+        <!-- Pin Header -->
+        <div class="pin-header">
+          <span class="pin-icon">
+            {{ pin.type === 'note' ? '📝' : pin.type === 'file' ? (pin.file_data?.name && pin.file_data.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? '🖼️' : '📎') : '🔗' }}
+          </span>
+          <h3 class="pin-title">{{ pin.title }}</h3>
+          <div v-if="canModifyPin(pin)" class="pin-actions">
+            <button 
+              v-if="pin.type === 'note'"
+              class="action-btn" 
+              @click.stop="openEditPinModal(pin)"
+              title="Edit"
+            >
+              ✏️
+            </button>
+            <button 
+              class="action-btn" 
+              @click.stop="deletePin(pin)"
+              title="Delete"
+            >
+              🗑️
+            </button>
           </div>
         </div>
+
+        <!-- Pin Content -->
+        <div class="pin-content">
+          <!-- Note Content -->
+          <p v-if="pin.type === 'note'" class="note-content">
+            {{ pin.content }}
+          </p>
+
+          <!-- File Content -->
+          <div v-else-if="pin.type === 'file'" class="file-content">
+            <!-- Image File -->
+            <div v-if="pin.file_data?.name && pin.file_data.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)" class="image-content">
+              <img 
+                v-if="pin.file_data?.url && !pin.file_data.loadError" 
+                :src="pin.file_data.url" 
+                :alt="pin.title"
+                class="pin-image"
+                @load="() => console.log('Image loaded successfully:', pin.file_data.url)"
+                @error="(e) => handleImageError(e, pin.file_data?.file_path)"
+              >
+              <div v-else class="image-placeholder">
+                <span>{{ pin.file_data?.loadError ? 'Failed to load image' : 'Image not available' }}</span>
+                <div v-if="pin.file_data" class="debug-info">
+                  <div>Path: {{ pin.file_data.file_path }}</div>
+                  <div v-if="pin.file_data.url">URL: {{ pin.file_data.url }}</div>
+                </div>
+              </div>
+            </div>
+            <!-- Regular File -->
+            <div v-else>
+              <button class="download-btn" @click.stop="downloadPinFile(pin)">
+                Download File
+              </button>
+              <span class="file-name">{{ pin.file_data?.name }}</span>
+            </div>
+          </div>
+
+          <!-- Link Content -->
+          <div v-else class="link-content">
+            <a 
+              :href="pin.content" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="link-url"
+              @click.stop
+            >
+              {{ pin.content }}
+            </a>
+            <img 
+              v-if="isImageUrl(pin.content)" 
+              :src="pin.content" 
+              :alt="pin.title"
+              class="link-image"
+              @error="error => { console.error('Link image load error:', error) }"
+            >
+          </div>
+        </div>
+
+        <!-- Pin Footer -->
+        <div class="pin-footer">
+          <div class="pin-creator">
+            <img 
+              v-if="pin.creator?.avatar_url"
+              :src="pin.creator.avatar_url"
+              :alt="pin.creator?.display_name"
+              class="creator-avatar"
+            >
+            <span v-else class="creator-initial">
+              {{ pin.creator?.display_name?.[0] || '?' }}
+            </span>
+            <span class="creator-name">{{ pin.creator?.display_name }}</span>
+          </div>
+          <span class="pin-date">{{ new Date(pin.created_at).toLocaleDateString() }}</span>
+        </div>
       </div>
+
+      <!-- Loading More State -->
+      <div v-if="loadingMore" class="loading-state">Loading more pins...</div>
+      <div v-if="allLoaded && pins.length > 0" class="loading-state">All pins loaded.</div>
     </div>
 
     <!-- Add Pin Modal -->
@@ -788,15 +875,17 @@ onUnmounted(() => {
 <style scoped>
 .pinboard {
   position: fixed;
-  top: var(--navbar-height, 72px); /* Use the CSS variable */
-  left: 280px; /* Width of side nav */
+  top: var(--navbar-height, 72px);
+  left: 280px;
   right: 0;
   bottom: 0;
   background: var(--color-black);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  padding-top: 8px; /* Add top padding to the entire pinboard */
+  overflow: auto;
+  width: 100vw;
+  height: 100vh;
+  padding-top: 8px;
 }
 
 .pinboard-header {
@@ -839,14 +928,9 @@ onUnmounted(() => {
 }
 
 .pins-container {
-  flex: 1;
-  padding: 24px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
-  align-items: start;
-  overflow-y: auto;
-  margin-top: 8px; /* Add space between header and pins */
+  position: relative;
+  /* width/height and background set inline for dynamic sizing */
+  overflow: auto;
 }
 
 .pin-card {
@@ -1156,5 +1240,17 @@ onUnmounted(() => {
 .pin-card.is-dragging {
   z-index: 100;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.pan-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  cursor: grabbing;
+  user-select: none;
+  background: transparent;
 }
 </style> 

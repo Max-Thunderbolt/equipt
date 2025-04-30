@@ -1,16 +1,18 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useProjects } from '../composables/useProjects'
 import { useUserSearch } from '../composables/useUserSearch'
 import { useFileStorage } from '../composables/useFileStorage'
+import { useNavigation } from '../composables/useNavigation'
 import { supabase } from '../supabase/config'
 import FilesGrid from '../components/ui/FilesGrid.vue'
 import ProjectSideNav from '../components/project/ProjectSideNav.vue'
 import Pinboard from '../components/project/Pinboard.vue'
 import ProjectTodos from '../components/ui/ProjectTodos.vue'
 import '../styles/projects.css'
+import { useNavBar } from '../composables/useNavBar'
 
 const TABLES = {
   PROJECTS: 'projects',
@@ -27,6 +29,8 @@ const { user } = useAuth()
 const { hasProjectAccess } = useProjects()
 const { searchResults, loading: userSearchLoading, error: userSearchError, searchUsers } = useUserSearch()
 const { uploadFile, downloadFile, getFileUrl, updateMissingFileUrls, error: fileError, uploading: fileUploading, progress: fileUploadProgress, deleteFile } = useFileStorage()
+const { navBarHeight } = useNavBar()
+const { isMobileMenuOpen } = useNavigation()
 
 // Add formatFileSize function
 const formatFileSize = (bytes) => {
@@ -565,13 +569,29 @@ const handleRoleUpdated = async (data) => {
   }
 }
 
+const isMobile = ref(false)
+const isMobileNavOpen = ref(false)
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768
+}
+
+const handleNavToggle = () => {
+  isMobileNavOpen.value = !isMobileNavOpen.value
+}
+
 onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
   projectId.value = route.params.id
   if (projectId.value) {
     fetchProject()
   } else {
     router.push('/projects')
   }
+})
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
 })
 </script>
 
@@ -589,10 +609,23 @@ onMounted(() => {
 
     <!-- Pinboard View -->
     <div v-else-if="activeSection === 'pinboard'" class="pinboard-view">
-      <ProjectSideNav :project-name="project.name" :owner="project.owner" :collaborators="project.collaborators"
-        :active-section="activeSection" :project-id="project.id" :project-description="project.description"
-        @section-change="handleSectionChange" @delete-project="openDeleteConfirm" @role-updated="handleRoleUpdated" />
-      <div class="pinboard-container">
+      <ProjectSideNav
+        :project-name="project.name"
+        :owner="project.owner"
+        :collaborators="project.collaborators"
+        :active-section="activeSection"
+        :project-id="project.id"
+        :project-description="project.description"
+        @section-change="handleSectionChange"
+        @delete-project="openDeleteConfirm"
+        @role-updated="handleRoleUpdated"
+        :is-mobile="isMobile"
+        :is-mobile-nav-open="isMobileNavOpen"
+        @toggle-nav="handleNavToggle"
+        :nav-bar-height="navBarHeight"
+        :is-navigation-menu-open="isMobileMenuOpen"
+      />
+      <div class="pinboard-container" :class="{ 'full-width-mobile': isMobile && !isMobileNavOpen }" :style="{ paddingTop: navBarHeight + 'px' }">
         <Pinboard :project-id="project.id" />
       </div>
     </div>
@@ -600,11 +633,24 @@ onMounted(() => {
     <!-- Main Content View -->
     <div v-else class="project-layout">
       <!-- Side Navigation -->
-      <ProjectSideNav :project-name="project.name" :owner="project.owner" :collaborators="project.collaborators"
-        :active-section="activeSection" :project-id="project.id" :project-description="project.description"
-        @section-change="handleSectionChange" @delete-project="openDeleteConfirm" @role-updated="handleRoleUpdated" />
+      <ProjectSideNav
+        :project-name="project.name"
+        :owner="project.owner"
+        :collaborators="project.collaborators"
+        :active-section="activeSection"
+        :project-id="project.id"
+        :project-description="project.description"
+        @section-change="handleSectionChange"
+        @delete-project="openDeleteConfirm"
+        @role-updated="handleRoleUpdated"
+        :is-mobile="isMobile"
+        :is-mobile-nav-open="isMobileNavOpen"
+        @toggle-nav="handleNavToggle"
+        :nav-bar-height="navBarHeight"
+        :is-navigation-menu-open="isMobileMenuOpen"
+      />
 
-      <div class="project-content">
+      <div class="project-content" :class="{ 'full-width-mobile': isMobile && !isMobileNavOpen }" :style="{ paddingTop: navBarHeight + 'px' }">
         <!-- Main Content Area -->
         <main class="project-main" v-if="activeSection !== 'pinboard'">
           <!-- Project Header -->
@@ -1197,13 +1243,20 @@ textarea {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .project-layout {
+  .project-layout,
+  .pinboard-view {
     flex-direction: column;
   }
-
   .project-main {
     margin-left: 0;
-    padding: 16px;
+    padding: 8px;
+  }
+  .project-content.full-width-mobile,
+  .pinboard-container.full-width-mobile {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 0 !important;
   }
 }
 </style>

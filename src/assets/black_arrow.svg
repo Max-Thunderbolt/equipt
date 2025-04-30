@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+
+  <!-- Horizontal bar -->
+  <rect x="0" y="150" width="70" height="20" rx="5" fill="#F29224"/>
+
+  <!-- Vertical bar -->
+  <rect x="60" y="100" width="20" height="70" rx="5" fill="#F29224"/>
+
+  <!-- Diagonal bar (now forming the base of the inverse L) -->
+  <rect x="65" y="100" width="20" height="80" rx="5" fill="#F29224" transform="rotate(-45 55 175)" />
+</svg>
