@@ -27,10 +27,16 @@ jobs:
           
       - name: Build
         run: npm run build
+
+      - name: Create Service Account File
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_EQUIPT_D6408 }}' > service-account.json
         
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_EQUIPT_D6408 }}'
+          firebaseServiceAccount: 'service-account.json'
           channelId: live
-          projectId: equipt-d6408 
+          projectId: equipt-d6408
+          entryPoint: . 
