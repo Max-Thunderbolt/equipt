@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useFileStorage } from '../../composables/useFileStorage'
 
 const props = defineProps({
@@ -10,6 +10,10 @@ const props = defineProps({
   canModify: {
     type: Boolean,
     default: false
+  },
+  containerRef: {
+    type: Object,
+    required: true
   }
 })
 
@@ -18,40 +22,113 @@ const emit = defineEmits(['edit', 'delete', 'position-update'])
 const { downloadFile, getFileUrl } = useFileStorage()
 const isDragging = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
+const pinsContainerRef = ref(null)
 
 const startDrag = (event) => {
-  if (!props.canModify) return
+  console.log('startDrag called', {
+    canModify: props.canModify,
+    event: {
+      target: event.target,
+      currentTarget: event.currentTarget
+    },
+    containerRef: props.containerRef
+  })
+
+  if (!props.canModify) {
+    console.log('Drag not allowed - user cannot modify')
+    return
+  }
   
   isDragging.value = true
   const rect = event.currentTarget.getBoundingClientRect()
   dragOffset.value = {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top
+    x: (event.clientX || event.touches[0].clientX) - rect.left,
+    y: (event.clientY || event.touches[0].clientY) - rect.top
   }
   
+  console.log('Drag started', {
+    dragOffset: dragOffset.value,
+    rect: rect
+  })
+  
   document.addEventListener('mousemove', onDrag)
+  document.addEventListener('touchmove', onDrag, { passive: false })
   document.addEventListener('mouseup', endDrag)
+  document.addEventListener('touchend', endDrag)
   
   event.preventDefault()
   event.stopPropagation()
 }
 
 const onDrag = (event) => {
-  if (!isDragging.value) return
+  if (!isDragging.value) {
+    console.log('onDrag called but not dragging')
+    return
+  }
   
-  const container = event.currentTarget.parentElement
+  if (!props.containerRef) {
+    console.warn('Container not found during drag', {
+      containerRef: props.containerRef
+    })
+    return
+  }
+  
+  const container = props.containerRef
   const rect = container.getBoundingClientRect()
-  const x = event.clientX - rect.left - dragOffset.value.x
-  const y = event.clientY - rect.top - dragOffset.value.y
+  const clientX = event.clientX || (event.touches && event.touches[0].clientX)
+  const clientY = event.clientY || (event.touches && event.touches[0].clientY)
+  
+  const x = clientX - rect.left - dragOffset.value.x + container.scrollLeft
+  const y = clientY - rect.top - dragOffset.value.y + container.scrollTop
+  
+  console.log('Dragging', {
+    position: { x, y },
+    rect: rect,
+    scroll: {
+      left: container.scrollLeft,
+      top: container.scrollTop
+    }
+  })
   
   emit('position-update', props.pin, Math.max(0, x), Math.max(0, y))
+  
+  event.preventDefault()
+  event.stopPropagation()
 }
 
-const endDrag = () => {
+const endDrag = (event) => {
+  console.log('endDrag called', { isDragging: isDragging.value })
+  
+  if (!isDragging.value) return
+  
   isDragging.value = false
   document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('touchmove', onDrag)
   document.removeEventListener('mouseup', endDrag)
+  document.removeEventListener('touchend', endDrag)
+  
+  console.log('Drag ended', {
+    finalPosition: {
+      x: props.pin.position_x,
+      y: props.pin.position_y
+    }
+  })
+  
+  if (event) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
 }
+
+// Add cleanup on component unmount
+onUnmounted(() => {
+  if (isDragging.value) {
+    document.removeEventListener('mousemove', onDrag)
+    document.removeEventListener('touchmove', onDrag)
+    document.removeEventListener('mouseup', endDrag)
+    document.removeEventListener('touchend', endDrag)
+  }
+})
 
 const downloadPinFile = async () => {
   try {
@@ -78,6 +155,8 @@ const handleImageError = async (event, filePath) => {
       console.error('Error retrying image load:', error)
     }
   }
+  
+  // If we get here, either the file path was invalid or the retry failed
   event.target.style.display = 'none'
   const placeholder = document.createElement('div')
   placeholder.className = 'image-error-placeholder'
@@ -89,6 +168,16 @@ const handleImageError = async (event, filePath) => {
     </div>
   `
   event.target.parentNode.appendChild(placeholder)
+}
+
+// Add a method to handle successful image loads
+const handleImageLoad = (event) => {
+  console.log('Image loaded successfully:', event.target.src)
+  // Remove any existing error placeholder
+  const placeholder = event.target.parentNode.querySelector('.image-error-placeholder')
+  if (placeholder) {
+    placeholder.remove()
+  }
 }
 
 const isImageUrl = (url) => {
@@ -104,9 +193,13 @@ const isImageUrl = (url) => {
     :class="[pin.type, { 'is-dragging': isDragging }]"
     :style="{ 
       transform: `translate3d(${pin.position_x || 0}px, ${pin.position_y || 0}px, 0)`,
-      cursor: canModify ? 'move' : 'default'
+      cursor: canModify ? 'move' : 'default',
+      position: 'absolute',
+      zIndex: isDragging ? 1000 : 'auto',
+      touchAction: 'none'
     }"
     @mousedown="startDrag"
+    @touchstart="startDrag"
   >
     <!-- Pin Header -->
     <div class="pin-header">
@@ -149,7 +242,7 @@ const isImageUrl = (url) => {
             :src="pin.file_data.url" 
             :alt="pin.title"
             class="pin-image"
-            @load="() => console.log('Image loaded successfully:', pin.file_data.url)"
+            @load="handleImageLoad"
             @error="(e) => handleImageError(e, pin.file_data?.file_path)"
           >
           <div v-else class="image-placeholder">
@@ -218,11 +311,18 @@ const isImageUrl = (url) => {
   gap: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: transform 0.1s ease, box-shadow 0.2s ease;
+  user-select: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .pin-card.is-dragging {
-  z-index: 100;
+  z-index: 1000;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  opacity: 0.9;
+  pointer-events: none;
 }
 
 .pin-header {

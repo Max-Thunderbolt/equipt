@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuth } from '../../composables/useAuth'
 import { usePinManagement } from '../../composables/usePinManagement'
 import { usePinboardPan } from '../../composables/usePinboardPan'
@@ -52,16 +52,31 @@ const isPlacingPin = ref(false)
 const pendingPinPosition = ref(null)
 
 const startPinPlacement = () => {
+  console.log('startPinPlacement called')
   isPlacingPin.value = true
   isAddPinModalOpen.value = false
 }
 
 const handlePinPlacement = (event) => {
+  console.log('handlePinPlacement called', {
+    isPlacingPin: isPlacingPin.value,
+    hasContainer: !!pinsContainerRef.value
+  })
+
   if (!isPlacingPin.value || !pinsContainerRef.value) return
 
   const rect = pinsContainerRef.value.getBoundingClientRect()
-  const x = event.clientX - rect.left
-  const y = event.clientY - rect.top
+  const x = event.clientX - rect.left + pinsContainerRef.value.scrollLeft
+  const y = event.clientY - rect.top + pinsContainerRef.value.scrollTop
+
+  console.log('Pin placement', {
+    position: { x, y },
+    rect: rect,
+    scroll: {
+      left: pinsContainerRef.value.scrollLeft,
+      top: pinsContainerRef.value.scrollTop
+    }
+  })
 
   pendingPinPosition.value = { x, y }
   isPlacingPin.value = false
@@ -85,15 +100,62 @@ const closeEditPinModal = () => {
   selectedPin.value = null
 }
 
+const handlePinPositionUpdate = async (pin, x, y) => {
+  console.log('handlePinPositionUpdate called', {
+    pin,
+    newPosition: { x, y }
+  })
+
+  try {
+    const success = await updatePinPosition(pin, x, y)
+    console.log('Pin position update result:', success)
+  } catch (error) {
+    console.error('Error updating pin position:', error)
+  }
+}
+
+const isContainerReady = computed(() => {
+  console.log('Checking container readiness:', {
+    hasContainer: !!pinsContainerRef.value,
+    container: pinsContainerRef.value
+  })
+  return !!pinsContainerRef.value
+})
+
+// Add touch support for panning
+const handleTouchStart = (event) => {
+  if (event.touches.length === 1) {
+    startPan(event)
+  }
+}
+
+const handleTouchMove = (event) => {
+  if (event.touches.length === 1) {
+    onPan(event)
+  }
+}
+
+const handleTouchEnd = (event) => {
+  endPan(event)
+}
+
 onMounted(() => {
+  console.log('Pinboard mounted', {
+    containerRef: pinsContainerRef.value
+  })
   fetchPins(true)
-  window.addEventListener('mousemove', onPan)
-  window.addEventListener('mouseup', endPan)
+  document.addEventListener('mousemove', onPan)
+  document.addEventListener('mouseup', endPan)
+  document.addEventListener('touchmove', handleTouchMove, { passive: false })
+  document.addEventListener('touchend', handleTouchEnd)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('mousemove', onPan)
-  window.removeEventListener('mouseup', endPan)
+  console.log('Pinboard unmounting')
+  document.removeEventListener('mousemove', onPan)
+  document.removeEventListener('mouseup', endPan)
+  document.removeEventListener('touchmove', handleTouchMove)
+  document.removeEventListener('touchend', handleTouchEnd)
 })
 </script>
 
@@ -108,6 +170,7 @@ onUnmounted(() => {
       ref="pinsContainerRef"
       class="pins-container"
       @mousedown="startPan"
+      @touchstart="handleTouchStart"
       @click="handlePinPlacement"
     >
       <!-- Loading State -->
@@ -121,15 +184,18 @@ onUnmounted(() => {
       </div>
 
       <!-- Pins -->
-      <PinCard
-        v-for="pin in pins"
-        :key="pin.id"
-        :pin="pin"
-        :can-modify="user?.id === pin.user_id"
-        @edit="selectedPin = pin; isEditPinModalOpen = true"
-        @delete="deletePin(pin)"
-        @position-update="updatePinPosition"
-      />
+      <template v-if="isContainerReady">
+        <PinCard
+          v-for="pin in pins"
+          :key="pin.id"
+          :pin="pin"
+          :can-modify="user?.id === pin.user_id"
+          :container-ref="pinsContainerRef"
+          @edit="selectedPin = pin; isEditPinModalOpen = true"
+          @delete="deletePin(pin)"
+          @position-update="handlePinPositionUpdate"
+        />
+      </template>
     </div>
 
     <!-- Add Pin Modal -->
@@ -162,7 +228,7 @@ onUnmounted(() => {
   background: var(--color-black);
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
   width: 100vw;
   height: 100vh;
   padding-top: 8px;
@@ -209,12 +275,38 @@ onUnmounted(() => {
 
 .pins-container {
   position: relative;
-  width: 100%;
-  height: 100%;
+  flex: 1;
   overflow: auto;
   background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
   background-size: 40px 40px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  min-height: 100%;
+  min-width: 100%;
+  touch-action: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+}
+
+.pins-container:active {
+  cursor: grabbing;
+}
+
+/* Ensure pins container has a minimum size */
+.pins-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  min-width: 2000px;
+  min-height: 2000px;
 }
 
 .loading-state,

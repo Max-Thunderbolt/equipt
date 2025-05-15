@@ -30,10 +30,32 @@ export function usePinManagement(projectId) {
 
         if (profilesError) throw profilesError
 
-        pins.value = pinsData.map(pin => ({
-          ...pin,
-          creator: profiles.find(profile => profile.id === pin.user_id) || null
+        const processedPins = await Promise.all(pinsData.map(async pin => {
+          if (pin.type === 'file' && pin.file_data?.file_path) {
+            try {
+              const fileUrl = await getFileUrl(pin.file_data.file_path)
+              if (fileUrl) {
+                pin.file_data = {
+                  ...pin.file_data,
+                  url: fileUrl
+                }
+              }
+            } catch (err) {
+              console.error('Error getting file URL:', err)
+              pin.file_data = {
+                ...pin.file_data,
+                loadError: true
+              }
+            }
+          }
+
+          return {
+            ...pin,
+            creator: profiles.find(profile => profile.id === pin.user_id) || null
+          }
         }))
+
+        pins.value = processedPins
       } else {
         pins.value = []
       }
