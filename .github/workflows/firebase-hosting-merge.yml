@@ -30,7 +30,8 @@ jobs:
 
       - name: Create Service Account File
         run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_EQUIPT_D6408 }}' > service-account.json
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_EQUIPT_D6408 }}' | base64 --decode > service-account.json
+          cat service-account.json | jq .
         
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
