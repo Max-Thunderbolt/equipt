@@ -81,25 +81,32 @@ export function usePinManagement(projectId) {
         }
       }
 
-      const { error: pinError } = await supabase
-        .from('project_pins')
-        .insert({
-          project_id: projectId,
-          user_id: pinData.user_id,
-          type: pinData.type,
-          title: pinData.title.trim(),
-          content: pinData.type === 'link' ? pinData.link.trim() : pinData.content.trim(),
-          file_data: fileData,
-          position_x: pinData.position?.x || 0,
-          position_y: pinData.position?.y || 0
-        })
+      const pinPayload = {
+        project_id: projectId,
+        user_id: pinData.user_id,
+        type: pinData.type,
+        title: pinData.title.trim(),
+        content: pinData.type === 'link' ? pinData.link.trim() : pinData.content.trim(),
+        file_data: fileData,
+        position_x: pinData.position?.x || 0,
+        position_y: pinData.position?.y || 0
+      }
+      console.log('addPin payload:', pinPayload)
 
-      if (pinError) throw pinError
+      const { data: insertData, error: pinError } = await supabase
+        .from('project_pins')
+        .insert(pinPayload)
+
+      if (pinError) {
+        console.error('Supabase insert error:', pinError)
+        console.error('Insert payload:', pinPayload)
+        return false
+      }
 
       await fetchPins()
       return true
     } catch (err) {
-      console.error('Error adding pin:', err)
+      console.error('Error adding pin (outer catch):', err)
       error.value = err.message || 'Failed to add pin'
       return false
     }

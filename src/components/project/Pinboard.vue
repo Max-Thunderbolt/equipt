@@ -139,6 +139,16 @@ const handleTouchEnd = (event) => {
   endPan(event)
 }
 
+const handleAddPin = async (pinData) => {
+  const success = await addPin({
+    ...pinData,
+    user_id: user.value.id
+  })
+  if (success) {
+    closeAddPinModal()
+  }
+}
+
 onMounted(() => {
   console.log('Pinboard mounted', {
     containerRef: pinsContainerRef.value
@@ -162,13 +172,15 @@ onUnmounted(() => {
 <template>
   <div class="pinboard">
     <div class="pinboard-header">
-      <h2>Project Pinboard</h2>
-      <button class="btn-add-pin" @click="startPinPlacement">+ Pin</button>
+      <h2>Project Pinboard <button class="btn-add-pin" @click="startPinPlacement">+ Pin</button></h2>
+      
     </div>
+    
 
     <div 
       ref="pinsContainerRef"
       class="pins-container"
+      :class="{ 'placing-pin': isPlacingPin }"
       @mousedown="startPan"
       @touchstart="handleTouchStart"
       @click="handlePinPlacement"
@@ -181,6 +193,11 @@ onUnmounted(() => {
       <!-- Error State -->
       <div v-if="error" class="error-state">
         {{ error }}
+      </div>
+
+      <!-- Pin Placement Overlay -->
+      <div v-if="isPlacingPin" class="pin-placement-overlay">
+        Click anywhere on the board to place your pin
       </div>
 
       <!-- Pins -->
@@ -204,7 +221,7 @@ onUnmounted(() => {
       :pin-data="newPinData"
       :position="pendingPinPosition"
       @close="closeAddPinModal"
-      @submit="addPin"
+      @submit="handleAddPin"
     />
 
     <!-- Edit Pin Modal -->
@@ -235,13 +252,13 @@ onUnmounted(() => {
 }
 
 .pinboard-header {
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
   background: var(--color-black-90);
   border-bottom: 1px solid var(--color-border);
+  min-height: 60px;
 }
 
 .pinboard-header h2 {
@@ -318,5 +335,26 @@ onUnmounted(() => {
 
 .error-state {
   color: var(--color-danger);
+}
+
+.pin-placement-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(30, 30, 30, 0.95);
+  color: #fff;
+  padding: 32px 48px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  z-index: 10;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+  pointer-events: none;
+  text-align: center;
+}
+
+.pins-container.placing-pin {
+  cursor: crosshair !important;
 }
 </style> 
