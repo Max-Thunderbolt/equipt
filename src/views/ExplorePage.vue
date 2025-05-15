@@ -40,7 +40,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase, TABLES } from '../supabase/config'
-import ProjectCard from '../components/ProjectCard.vue'
+import ProjectCard from '../components/project/ProjectCard.vue'
 import ExploreSideNav from '../components/ExploreSideNav.vue'
 
 const projects = ref([])

@@ -4,11 +4,13 @@ import { useRouter } from 'vue-router'
 import { supabase } from './supabase/config'
 import Navigation from './components/layout/Navigation.vue'
 import DefaultLayout from './components/layout/DefaultLayout.vue'
-import Toast from './components/ui/Toast.vue'
+import Toast from './components/Toast.vue'
+import { useUiStore } from './stores/ui.js'
 
 const router = useRouter()
 const isOnline = ref(navigator.onLine)
 const isVisible = ref(!document.hidden)
+const uiStore = useUiStore()
 
 // Handle online/offline status
 const handleOnlineStatus = () => {
@@ -164,7 +166,7 @@ onUnmounted(() => {
 
 <template>
   <div class="app">
-    <Navigation />
+    <Navigation v-if="uiStore.showTopNav" />
     <DefaultLayout>
       <router-view />
     </DefaultLayout>

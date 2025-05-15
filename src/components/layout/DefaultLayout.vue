@@ -8,7 +8,6 @@
 
 <style scoped>
 .default-layout {
-  padding-top: calc(var(--navbar-height, 72px) + 2rem); /* Navigation height + padding */
   min-height: 100vh;
   width: 100%;
 }

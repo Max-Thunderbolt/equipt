@@ -7,12 +7,13 @@ import { useUserSearch } from '../composables/useUserSearch'
 import { useFileStorage } from '../composables/useFileStorage'
 import { useNavigation } from '../composables/useNavigation'
 import { supabase } from '../supabase/config'
-import FilesGrid from '../components/ui/FilesGrid.vue'
-import ProjectSideNav from '../components/project/ProjectSideNav.vue'
-import Pinboard from '../components/project/Pinboard.vue'
-import ProjectTodos from '../components/ui/ProjectTodos.vue'
+import FilesGrid from '../components/files/FilesGrid.vue'
+import ProjectSideNav from '../components/layout/ProjectSideNav.vue'
+import Pinboard from '../components/pinboard/Pinboard.vue'
+import ProjectTodos from '../components/tasks/ProjectTodos.vue'
 import '../styles/projects.css'
 import { useNavBar } from '../composables/useNavBar'
+import { useUiStore } from '../stores/ui.js'
 
 const TABLES = {
   PROJECTS: 'projects',
@@ -31,6 +32,7 @@ const { searchResults, loading: userSearchLoading, error: userSearchError, searc
 const { uploadFile, downloadFile, getFileUrl, updateMissingFileUrls, error: fileError, uploading: fileUploading, progress: fileUploadProgress, deleteFile } = useFileStorage()
 const { navBarHeight } = useNavBar()
 const { isMobileMenuOpen } = useNavigation()
+const uiStore = useUiStore()
 
 // Add formatFileSize function
 const formatFileSize = (bytes) => {
@@ -365,6 +367,12 @@ const handleFileDeleted = async (file) => {
 
 const handleSectionChange = async (section) => {
   activeSection.value = section
+  // Hide navs when entering pinboard, show otherwise
+  if (section === 'pinboard') {
+    uiStore.hideNavs()
+  } else {
+    uiStore.showNavs()
+  }
   
   // Fetch updates from the database when switching to the updates section
   if (section === 'updates') {
@@ -589,9 +597,17 @@ onMounted(() => {
   } else {
     router.push('/projects')
   }
+  // Set nav visibility on mount
+  if (activeSection.value === 'pinboard') {
+    uiStore.hideNavs()
+  } else {
+    uiStore.showNavs()
+  }
 })
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
+  // Restore navs on leave
+  uiStore.showNavs()
 })
 </script>
 
@@ -610,6 +626,7 @@ onUnmounted(() => {
     <!-- Pinboard View -->
     <div v-else-if="activeSection === 'pinboard'" class="pinboard-view">
       <ProjectSideNav
+        v-if="uiStore.showSideNav"
         :project-name="project.name"
         :owner="project.owner"
         :collaborators="project.collaborators"
@@ -634,6 +651,7 @@ onUnmounted(() => {
     <div v-else class="project-layout">
       <!-- Side Navigation -->
       <ProjectSideNav
+        v-if="uiStore.showSideNav"
         :project-name="project.name"
         :owner="project.owner"
         :collaborators="project.collaborators"

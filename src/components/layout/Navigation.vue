@@ -207,10 +207,18 @@ onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true });
   // Set initial height
   setNavBarHeight(dynamicNavBarHeight.value)
+  document.documentElement.style.setProperty('--navbar-height', dynamicNavBarHeight.value + 'px');
+  window.addEventListener('resize', () => {
+    document.documentElement.style.setProperty('--navbar-height', dynamicNavBarHeight.value + 'px');
+  });
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
+});
+
+watch(dynamicNavBarHeight, (newHeight) => {
+  document.documentElement.style.setProperty('--navbar-height', newHeight + 'px');
 });
 </script>
 

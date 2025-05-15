@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useProfile } from '../composables/useProfile'
-import FilesGrid from '../components/ui/FilesGrid.vue'
+import FilesGrid from '../components/files/FilesGrid.vue'
 import { useFileStorage } from '../composables/useFileStorage'
 import { supabase } from '../supabase/config'
 
