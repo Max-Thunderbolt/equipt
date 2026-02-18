@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap');
 
 /* @import './cards.css';
 @import './forms.css';
@@ -12,6 +13,7 @@
   /* Fonts */
   --font-mono: 'Source Code Pro', monospace; /* Headline font */
   --font-sans: 'Atkinson Hyperlegible', sans-serif; /* Primary font */
+  --font-figtree: 'Figtree', sans-serif;
 
   /* Base Colors */
   --black: #000000;
@@ -75,19 +77,92 @@
   --color-shadow: var(--color-black-50);
 }
 
+/*  This container has the gradient we want for the pill buttons
+.nav-container {
+  border-radius: 9999px;
+  background: linear-gradient(180deg,
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid linear-gradient(180deg,
+      rgba(184, 175, 229, 0.35) 0%,
+      rgba(237, 150, 62, 0.35) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr;
+  align-items: center;
+  height: 4rem;
+  padding: 0 1.5rem;
+  margin: 1rem;
+  box-sizing: border-box;
+} */
+
 .container {
-    background-color: var(--color-background);
-    color: var(--color-text);
-    padding: 20px;
-    border-radius: 16px;
-    box-shadow: 0 0 16px 0 rgba(var(--white-RGB), 0.5);
-    margin: 0 auto;
-    margin-top: 2rem;
-    margin-bottom: 2rem;
-    max-width: 1200px;
-    width: auto;
-    height: auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+  border-radius: 24px;
+  background: linear-gradient(180deg,
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid linear-gradient(180deg,
+      rgba(184, 175, 229, 0.35) 0%,
+      rgba(237, 150, 62, 0.35) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  padding: 0.25rem;
+  margin: 1rem;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 1.5rem;
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glass-orange {
+  background: rgba(237, 150, 62, 0.12);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(237, 150, 62, 0.2);
+}
+
+.pill {
+  border-radius: 9999px;
+  padding: 0.625rem 1.5625rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.pill-orange {
+  background: rgba(237, 150, 62, 0.15);
+  border: 1px solid rgba(237, 150, 62, 0.3);
+  color: hsl(30 84% 59%);
+}
+
+.pill-orange:hover {
+  background: rgba(237, 150, 62, 0.25);
+  border-color: rgba(237, 150, 62, 0.5);
+}
+
+.glow-orange {
+  box-shadow: 0 0 60px rgba(237, 150, 62, 0.15), 0 0 120px rgba(237, 150, 62, 0.05);
+}
+
+.text-gradient-orange {
+  background: linear-gradient(135deg, #ED963E, #f5b56e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
