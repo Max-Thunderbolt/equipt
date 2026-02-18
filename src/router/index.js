@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { routes } from 'vue-router/auto-routes'
-import { useUserStore } from '../stores/user'
+import { useUserStore } from '@/stores'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,8 +21,8 @@ router.beforeEach(async (to, from, next) => {
           resolve()
         }
       })
-      // Timeout so we don't hang forever if Firebase never fires
-      setTimeout(resolve, 2000)
+      // Fallback timeout if Firebase never reports auth state
+      setTimeout(resolve, 10000)
     })
   }
 

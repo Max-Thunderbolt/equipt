@@ -1,4 +1,4 @@
-import { auth } from '../main';
+import { auth } from '@/config/firebase'
 import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
