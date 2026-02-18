@@ -1,124 +1,255 @@
 <template>
-  <div class="scroll-story" ref="scrollStoryRef">
-    <div class="scroll-story__slide scroll-story__slide--video">
-      <div class="video-container">
-        <video controls width="100%" height="100%" src="../assets/anim.mp4" autoplay muted playsinline loop>
-          Your browser does not support the video tag.
-        </video>
+  <div class="index-page">
+    <div class="scroll-story" ref="scrollStoryRef">
+      <div class="scroll-story__slide scroll-story__slide--video">
+        <div class="video-container">
+          <video controls width="100%" height="100%" src="../assets/anim.mp4" autoplay muted playsinline loop>
+            Your browser does not support the video tag.
+          </video>
+        </div>
       </div>
+      <section ref="createSectionRef" class="scroll-story__slide create-section" :style="createSectionStyle">
+        <div class="create-section__image">
+          <img :src="createImage" alt="" class="create-section__img" aria-hidden="true">
+        </div>
+        <div class="create-section__card">
+          <div class="create-card">
+            <div class="create-card__content">
+              <img :src="arrowSvg" alt="" class="create-card__arrow" aria-hidden="true">
+              <h1 class="create-card__title">To Create.</h1>
+              <p class="create-card__text">
+                To Create is a statement that embodies innovation, imagination, and action.
+                <br>
+                <br>
+                Its meaning is significant across different domains: art, technology, business, and personal growth.
+                <br>
+                <br>
+                Creativity is not limited to artists.
+                <br>
+                It's a way of thinking.
+                <br>
+                <br>
+                Engineers create solutions, entrepreneurs create businesses, and individuals
+                create their own paths. It implies breaking boundaries, experimenting, and refusing to accept
+                stagnation.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section ref="whoSectionRef" class="scroll-story__slide who-section" :style="whoSectionStyle">
+        <div class="who-section__content">
+          <h2 class="who-section__title">Who we are.</h2>
+          <p class="who-section__text">
+            Equipt is a South African based brand built on empowerment, performance and efficiency.
+          </p>
+          <p class="who-section__text">
+            Our Platform is intentionally designed with individuals toughest challenges in mind.
+          </p>
+          <p class="who-section__text">
+            By blending accessibility with professional design, we give users digestable, inspirational and solution
+            driven
+            approaches that reflect their unique needs.
+          </p>
+        </div>
+        <div class="who-section__visual">
+          <div class="who-section__cards">
+            <div class="who-card who-card--filled">
+              <img :src="arrowSvg" alt="" class="who-card__arrow" aria-hidden="true">
+              <h3 class="who-card__heading">Key Traits:</h3>
+              <ul class="who-card__list">
+                <li>Succinct</li>
+                <li>Universal</li>
+                <li>Conversational</li>
+                <li>Charming</li>
+              </ul>
+            </div>
+            <div class="who-card"></div>
+            <div class="who-card"></div>
+          </div>
+          <!-- <img :src="createImage" alt="Equipt" class="who-section__logo" aria-hidden="true"> -->
+        </div>
+      </section>
+
+      <section ref="missionSectionRef" class="scroll-story__slide mission-section" :style="missionSectionStyle">
+        <div class="mission-section__content">
+          <h2 class="mission-section__title">Mission & Core Values.</h2>
+          <h3 class="mission-section__subtitle">Our Mission:</h3>
+          <p class="mission-section__text">
+            To create quality, crafted solutions which blend durability and style, effortlessly and practically. Helping
+            people create the most functional and beautiful creative solution for their specific context.
+          </p>
+          <h3 class="mission-section__subtitle">Core Values:</h3>
+          <ul class="mission-section__list">
+            <li>Solution Driven</li>
+            <li>Authenticity</li>
+            <li>Intentionality</li>
+            <li>Efficiency</li>
+            <li>Quality</li>
+          </ul>
+        </div>
+        <div class="mission-section__visual">
+          <div class="mission-section__pills">
+            <div class="mission-pill"> Solution Driven</div>
+            <div class="mission-pill"> Authenticity</div>
+            <div class="mission-pill"> Intentionality</div>
+            <div class="mission-pill"> Efficiency</div>
+            <div class="mission-pill"> Quality</div>
+          </div>
+          <img :src="createImage" alt="Equipt" class="mission-section__logo" aria-hidden="true">
+        </div>
+      </section>
     </div>
-    <section class="scroll-story__slide create-section">
-      <div class="create-section__image">
-        <img :src="createImage" alt="" class="create-section__img" aria-hidden="true">
-      </div>
-      <div class="create-section__card">
-        <div class="create-card">
-          <div class="create-card__content">
-            <img :src="arrowSvg" alt="" class="create-card__arrow" aria-hidden="true">
-            <h1 class="create-card__title">To Create.</h1>
-            <p class="create-card__text">
-              To Create is a statement that embodies innovation, imagination, and action.
-              <br>
-              <br>
-              Its meaning is significant across different domains: art, technology, business, and personal growth.
-              <br>
-              <br>
-              Creativity is not limited to artists.
-              <br>
-              It's a way of thinking.
-              <br>
-              <br>
-              Engineers create solutions, entrepreneurs create businesses, and individuals
-              create their own paths. It implies breaking boundaries, experimenting, and refusing to accept stagnation.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <section class="who-section">
-      <div class="who-section__content">
-        <h2 class="who-section__title">Who we are.</h2>
-        <p class="who-section__text">
-          Equipt is a South African based brand built on empowerment, performance and efficiency.
-        </p>
-        <p class="who-section__text">
-          Our Platform is intentionally designed with individuals toughest challenges in mind.
-        </p>
-        <p class="who-section__text">
-          By blending accessibility with professional design, we give users digestable, inspirational and solution
-          driven
-          approaches that reflect their unique needs.
-        </p>
-      </div>
-      <div class="who-section__visual">
-        <div class="who-section__cards">
-          <div class="who-card who-card--filled">
-            <img :src="arrowSvg" alt="" class="who-card__arrow" aria-hidden="true">
-            <h3 class="who-card__heading">Key Traits:</h3>
-            <ul class="who-card__list">
-              <li>Succinct</li>
-              <li>Universal</li>
-              <li>Conversational</li>
-              <li>Charming</li>
-            </ul>
-          </div>
-          <div class="who-card"></div>
-          <div class="who-card"></div>
-        </div>
-        <!-- <img :src="createImage" alt="Equipt" class="who-section__logo" aria-hidden="true"> -->
-      </div>
-    </section>
-
-    <section class="mission-section">
-      <div class="mission-section__content">
-        <h2 class="mission-section__title">Mission & Core Values.</h2>
-        <h3 class="mission-section__subtitle">Our Mission:</h3>
-        <p class="mission-section__text">
-          To create quality, crafted solutions which blend durability and style, effortlessly and practically. Helping
-          people create the most functional and beautiful creative solution for their specific context.
-        </p>
-        <h3 class="mission-section__subtitle">Core Values:</h3>
-        <ul class="mission-section__list">
-          <li>Solution Driven</li>
-          <li>Authenticity</li>
-          <li>Intentionality</li>
-          <li>Efficiency</li>
-          <li>Quality</li>
-        </ul>
-      </div>
-      <div class="mission-section__visual">
-        <div class="mission-section__pills">
-          <div class="mission-pill"> Solution Driven</div>
-          <div class="mission-pill"> Authenticity</div>
-          <div class="mission-pill"> Intentionality</div>
-          <div class="mission-pill"> Efficiency</div>
-          <div class="mission-pill"> Quality</div>
-        </div>
-        <img :src="createImage" alt="Equipt" class="mission-section__logo" aria-hidden="true">
-      </div>
-    </section>
-  </div>
-  <div class="scroll-story__hint" aria-hidden="true">
-    <span class="scroll-story__hint-text">Scroll to explore</span>
-    <v-icon size="20" class="scroll-story__hint-icon">mdi-chevron-down</v-icon>
   </div>
 </template>
 
 <script setup>
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import arrowSvg from '@/assets/arrow.svg'
 import createImage from '@/assets/equiptOrangeIcon.png'
+
+const scrollStoryRef = ref(null)
+const createSectionRef = ref(null)
+const whoSectionRef = ref(null)
+const missionSectionRef = ref(null)
+
+const createSectionStyle = reactive({ transform: 'scale(0.6)', opacity: '0' })
+const whoSectionStyle = reactive({ transform: 'scale(0.6)', opacity: '0' })
+const missionSectionStyle = reactive({ transform: 'scale(0.6)', opacity: '0' })
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function updateScrollEffects() {
+  const el = scrollStoryRef.value
+  if (!el || !createSectionRef.value || !whoSectionRef.value || !missionSectionRef.value) return
+
+  const scrollTop = el.scrollTop
+  const vh = el.clientHeight
+  const createTop = createSectionRef.value.offsetTop
+  const createHeight = createSectionRef.value.offsetHeight
+  const whoTop = whoSectionRef.value.offsetTop
+  const whoHeight = whoSectionRef.value.offsetHeight
+  const missionTop = missionSectionRef.value.offsetTop
+
+  // To Create: zoom in as we scroll into it (createTop - vh → createTop), zoom out as we scroll to Who (createTop → createTop + createHeight)
+  const createEnter = clamp((scrollTop - (createTop - vh)) / vh, 0, 1)
+  const createLeave = clamp((scrollTop - createTop) / (createHeight * 0.7), 0, 1)
+  const createVisible = createEnter < 1 ? createEnter : Math.max(0, 1 - createLeave)
+  const createScale = 0.5 + 0.5 * createVisible
+  createSectionStyle.transform = `scale(${createScale})`
+  createSectionStyle.opacity = String(createVisible)
+
+  // Who we are: zoom in as we scroll into it, zoom out as we scroll to Mission
+  const whoEnter = clamp((scrollTop - (whoTop - vh)) / vh, 0, 1)
+  const whoLeave = clamp((scrollTop - whoTop) / (whoHeight * 0.7), 0, 1)
+  const whoVisible = whoEnter < 1 ? whoEnter : Math.max(0, 1 - whoLeave)
+  const whoScale = 0.5 + 0.5 * whoVisible
+  whoSectionStyle.transform = `scale(${whoScale})`
+  whoSectionStyle.opacity = String(whoVisible)
+
+  // Mission: zoom in as we scroll into it
+  const missionEnter = clamp((scrollTop - (missionTop - vh)) / vh, 0, 1)
+  const missionScale = 0.5 + 0.5 * missionEnter
+  missionSectionStyle.transform = `scale(${missionScale})`
+  missionSectionStyle.opacity = String(missionEnter)
+}
+
+onMounted(() => {
+  const el = scrollStoryRef.value
+  if (!el) return
+  el.addEventListener('scroll', updateScrollEffects, { passive: true })
+  updateScrollEffects()
+})
+
+onUnmounted(() => {
+  const el = scrollStoryRef.value
+  if (el) el.removeEventListener('scroll', updateScrollEffects)
+})
 </script>
 
 <style scoped>
+.index-page {
+  height: 100vh;
+  position: relative;
+  background: #000;
+}
+
+.scroll-story {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+.scroll-story__slide {
+  height: 100vh;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  box-sizing: border-box;
+}
+
+.scroll-story__slide--video {
+  padding: 0;
+}
+
+.scroll-story__slide--video .video-container {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+}
+
+.scroll-story__slide--video .video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scroll-story__hint {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.875rem;
+  pointer-events: none;
+  z-index: 50;
+  animation: scroll-hint-bounce 2s ease-in-out infinite;
+}
+
+@keyframes scroll-hint-bounce {
+
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  50% {
+    transform: translateX(-50%) translateY(4px);
+  }
+}
+
 .create-section {
-  margin: 2rem 0;
+  margin: 0;
   padding: 0 1rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
   align-items: center;
   width: 100%;
+  height: 100%;
+  min-height: 100vh;
   box-sizing: border-box;
 }
 
@@ -202,14 +333,14 @@ import createImage from '@/assets/equiptOrangeIcon.png'
 
 /* Who we are section: left = white text, right = black + gradient cards */
 .who-section {
-  padding: 1rem;
   margin: 0;
   padding: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   width: 100%;
+  height: 100%;
+  min-height: 100vh;
   box-sizing: border-box;
-  min-height: 400px;
 }
 
 .who-section__content {
@@ -315,8 +446,9 @@ import createImage from '@/assets/equiptOrangeIcon.png'
   display: grid;
   grid-template-columns: 1fr 1fr;
   width: 100%;
+  height: 100%;
+  min-height: 100vh;
   box-sizing: border-box;
-  min-height: 420px;
 }
 
 .mission-section__content {
