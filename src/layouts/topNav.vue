@@ -1,48 +1,68 @@
 <template>
   <nav class="nav">
     <div class="nav-container">
-      <!-- <div class="glass"> -->
       <div class="nav-logo">
         <router-link to="/">
           <img :src="logoImg" alt="equipt. logo" class="nav-logo-img">
         </router-link>
       </div>
       <div class="nav-links">
-        <div class="nav-link-item">
-          <button class="nav-link-button-projects" @click="toggleProjects">
-            Projects
-            <v-icon size="16">mdi-chevron-down</v-icon>
-          </button>
-          <ProjectsModal v-if="isProjectsOpen" :open="isProjectsOpen" @close="closeProjects" />
-        </div>
-        <div class="nav-link-item">
-          <button class="nav-link-button" @click="toggleExplore">
-            Explore
-          </button>
-        </div>
+        <template v-if="userStore.isLoggedIn">
+          <div class="nav-link-item">
+            <button class="nav-link-button-projects" @click="toggleProjects">
+              Projects
+              <v-icon size="16">mdi-chevron-down</v-icon>
+            </button>
+            <ProjectsModal v-if="isProjectsOpen" :open="isProjectsOpen" @close="closeProjects" />
+          </div>
+          <div class="nav-link-item">
+            <button class="nav-link-button-todos" @click="goToExplore">
+              Explore
+            </button>
+          </div>
+        </template>
+      </div>
+      <div class="nav-auth">
+        <template v-if="userStore.isLoggedIn">
+          <div class="profile">
+            <button class="profile-button" @click="toggleProfile">
+              <img
+                :src="userStore.photoURL || defaultAvatar"
+                alt="profile"
+                class="profile-img"
+                :class="{ 'profile-img--default': !userStore.photoURL }"
+                @error="onAvatarError"
+              >
+            </button>
+            <ProfileDropdown v-if="isProfileOpen" :open="isProfileOpen" @close="closeProfile" />
+          </div>
+        </template>
+        <template v-else>
+          <router-link to="/login" class="nav-auth-link">Login</router-link>
+          <router-link to="/register" class="nav-auth-link nav-auth-link--primary">Register</router-link>
+        </template>
       </div>
     </div>
-    <!-- </div> -->
   </nav>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useUserStore } from '@/stores'
 import ProjectsModal from '@/components/modals/projectsModal.vue'
 import ProfileDropdown from '@/components/dropdowns/ProfileDropdown.vue'
 import logoImg from '@/assets/equiptBanner.png'
-import arrowDown from '@/assets/arrow.svg'
+import defaultAvatar from '@/assets/user.png'
 
+const userStore = useUserStore()
 const isProjectsOpen = ref(false)
 const isProfileOpen = ref(false)
-const isCollapsed = ref(false)
 
-const toggleCollapse = () => {
-  isCollapsed.value = !isCollapsed.value
+function onAvatarError(e) {
+  e.target.src = defaultAvatar
 }
 
 const toggleProjects = () => {
-  console.log('toggleProjects', !isProjectsOpen.value)
   isProjectsOpen.value = !isProjectsOpen.value
 }
 
@@ -117,6 +137,7 @@ const closeProfile = () => {
 }
 
 .nav-link-item {
+  color: #fff;
   position: relative;
 }
 
@@ -130,18 +151,83 @@ const closeProfile = () => {
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   padding: 0.5rem 1rem;
+  color: #fff;
+}
+
+.nav-auth {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-auth-link {
+  font-family: var(--font-figtree);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  transition: all 0.2s ease;
+}
+
+.nav-auth-link:hover {
+  background: linear-gradient(180deg,
+      rgba(121, 121, 183, 0.2) 0%,
+      rgba(242, 104, 55, 0.2) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.nav-auth-link--primary {
+  color: #fff;
+}
+
+.nav-auth-link--primary:hover {
+  box-shadow: 0 4px 24px rgba(237, 150, 62, 0.35);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .profile {
-  justify-self: end;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.arrow-down-icon {
+.profile:hover {
+  border-radius: 9999px;
+  background: linear-gradient(180deg,
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  padding: 0.5rem 1rem;
+}
 
-  width: 1rem;
-  height: 1rem;
+.profile-button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-img {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-img--default {
+  /* Tint placeholder to equipt orange #ED963E */
+  filter: brightness(0) invert(68%) sepia(52%) saturate(1200%) hue-rotate(360deg);
 }
 </style>

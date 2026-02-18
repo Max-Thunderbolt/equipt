@@ -3,7 +3,7 @@
     <div class="scroll-story" ref="scrollStoryRef">
       <div class="scroll-story__slide scroll-story__slide--video">
         <div class="video-container">
-          <video controls width="100%" height="100%" src="../assets/anim.mp4" autoplay muted playsinline loop>
+          <video width="100%" height="100%" src="../assets/anim.mp4" autoplay muted playsinline loop>
             Your browser does not support the video tag.
           </video>
         </div>
@@ -100,6 +100,21 @@
           <img :src="createImage" alt="Equipt" class="mission-section__logo" aria-hidden="true">
         </div>
       </section>
+
+      <section class="scroll-story__slide cta-section">
+        <div class="cta-section__inner">
+          <template v-if="!userStore.isLoggedIn">
+            <router-link to="/register" class="cta-button cta-button--primary">
+              <img :src="arrowSvg" alt="" class="cta-button__arrow" aria-hidden="true">
+              <span>Get started</span>
+            </router-link>
+          </template>
+          <template v-else>
+            <router-link to="/projects" class="cta-button cta-button--primary">Projects</router-link>
+            <router-link to="/explore" class="cta-button cta-button--secondary">Explore</router-link>
+          </template>
+        </div>
+      </section>
     </div>
 
   </div>
@@ -107,9 +122,11 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { useUserStore } from '@/stores'
 import arrowSvg from '@/assets/arrow.svg'
 import createImage from '@/assets/equiptOrangeIcon.png'
 
+const userStore = useUserStore()
 const scrollStoryRef = ref(null)
 const createSectionRef = ref(null)
 const whoSectionRef = ref(null)
@@ -539,6 +556,77 @@ onUnmounted(() => {
   width: 2.5rem;
   height: 2.5rem;
   object-fit: contain;
+}
+
+/* CTA section: Get started (guest) or Projects / Explore (logged in) */
+.cta-section {
+  background: var(--color-background);
+}
+
+.cta-section__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  border-radius: 9999px;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.cta-button__arrow {
+  width: 1.25rem;
+  height: 1.25rem;
+  filter: brightness(0) invert(1);
+}
+
+.cta-button--primary {
+  border-radius: 9999px;
+  background: linear-gradient(180deg,
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  color: #fff;
+}
+
+.cta-button--primary:hover {
+  background: linear-gradient(180deg,
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(237, 150, 62, 0.788);
+  transform: scale(1.5);
+}
+
+.cta-button--secondary {
+  background: var(--glass-gradient);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: var(--glass-border);
+  color: #fff;
+  box-shadow: var(--glass-shadow);
+}
+
+.cta-button--secondary:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, rgba(220, 190, 230, 0.5) 0%, rgba(180, 220, 230, 0.5) 100%);
 }
 
 @media (max-width: 768px) {

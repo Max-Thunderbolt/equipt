@@ -11,6 +11,7 @@ export const useUserStore = defineStore('user', {
         isLoggedIn: (state) => !!state.user,
         uid: (state) => state.user?.uid ?? null,
         email: (state) => state.user?.email ?? null,
+        photoURL: (state) => state.user?.photoURL ?? null,
     },
 
     actions: {

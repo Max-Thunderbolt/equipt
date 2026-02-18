@@ -1,37 +1,15 @@
 <template>
   <div class="auth-form-wrapper">
-    <v-btn
-      variant="outlined"
-      size="large"
-      :loading="loadingGoogle"
-      class="auth-google"
-      @click="emit('google')"
-    >
+    <v-btn variant="outlined" size="large" :loading="loadingGoogle" class="auth-google" @click="emit('google')">
       <v-icon start>mdi-google</v-icon>
       Continue with Google
     </v-btn>
     <v-divider class="auth-divider">or</v-divider>
     <form class="auth-form" @submit.prevent="handleSubmit">
-      <v-text-field
-        v-model="email"
-        label="Email"
-        type="email"
-        variant="outlined"
-        density="comfortable"
-        class="auth-field"
-        :error-messages="emailError"
-        @blur="emailError = ''"
-      />
-      <v-text-field
-        v-model="password"
-        label="Password"
-        type="password"
-        variant="outlined"
-        density="comfortable"
-        class="auth-field"
-        :error-messages="passwordError"
-        @blur="passwordError = ''"
-      />
+      <v-text-field v-model="email" label="Email" type="email" variant="outlined" density="comfortable"
+        class="auth-field" :error-messages="emailError" @blur="emailError = ''" />
+      <v-text-field v-model="password" label="Password" type="password" variant="outlined" density="comfortable"
+        class="auth-field" :error-messages="passwordError" @blur="passwordError = ''" />
       <v-alert v-if="error" type="error" density="compact" class="auth-alert">
         {{ error }}
       </v-alert>
@@ -89,6 +67,7 @@ function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  font-family: var(--font-sans), sans-serif;
 }
 
 .auth-form {
@@ -103,23 +82,51 @@ function handleSubmit() {
 
 .auth-field :deep(input),
 .auth-field :deep(.v-field__input) {
-  background: transparent;
+  background: transparent !important;
+  font-family: var(--font-sans), sans-serif;
+}
+
+.auth-field :deep(.v-field) {
+  background: transparent !important;
+  border-radius: 12px;
+}
+
+.auth-field :deep(.v-field__outline) {
+  --v-border-opacity: 0.2;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.auth-field :deep(.v-field--focused .v-field__outline),
+.auth-field :deep(.v-field:hover .v-field__outline) {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.auth-field :deep(.v-label) {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.auth-field :deep(.v-field__input) {
+  color: #fff;
 }
 
 .auth-field :deep(input:-webkit-autofill),
 .auth-field :deep(input:-webkit-autofill:hover),
 .auth-field :deep(input:-webkit-autofill:focus),
 .auth-field :deep(input:-webkit-autofill:active) {
-  -webkit-box-shadow: 0 0 0 30px rgba(255, 255, 255, 0.05) inset !important;
-  box-shadow: 0 0 0 30px rgba(255, 255, 255, 0.05) inset !important;
+  -webkit-box-shadow: 0 0 0 30px transparent inset !important;
+  box-shadow: 0 0 0 30px transparent inset !important;
+  -webkit-text-fill-color: #fff;
 }
 
 .auth-alert {
   margin-top: 0.5rem;
+  font-family: var(--font-sans), sans-serif;
 }
 
-.auth-submit {
-  margin-top: 1rem;
+.auth-submit,
+.auth-google {
+  font-family: var(--font-sans), sans-serif;
+  font-weight: 600;
 }
 
 .auth-divider {

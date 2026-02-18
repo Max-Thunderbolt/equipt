@@ -75,6 +75,13 @@
   --color-border: var(--color-white-10);
   --color-border-hover: var(--color-white-20);
   --color-shadow: var(--color-black-50);
+
+  /* Glass card (index create-card style) */
+  --glass-gradient: linear-gradient(180deg, rgba(220, 190, 230, 0.4) 0%, rgba(180, 220, 230, 0.4) 100%);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --radius-card: 24px;
+  --radius-card-lg: 32px;
 }
 
 /*  This container has the gradient we want for the pill buttons

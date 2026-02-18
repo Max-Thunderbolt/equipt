@@ -2,11 +2,7 @@
   <div ref="dropdownRef" class="profile-dropdown">
     <div class="profile-dropdown-caret" />
     <div class="profile-dropdown-menu">
-      <button
-        type="button"
-        class="profile-dropdown-item"
-        @click="handleLogout"
-      >
+      <button type="button" class="profile-dropdown-item" @click="handleLogout">
         Logout
       </button>
     </div>
@@ -69,20 +65,23 @@ onUnmounted(() => {
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 6px solid white;
-  filter: drop-shadow(0 -1px 1px rgba(0, 0, 0, 0.05));
+  border-bottom: 6px solid rgba(255, 255, 255, 0.95);
+  filter: drop-shadow(0 -1px 1px rgba(0, 0, 0, 0.08));
 }
 
 .profile-dropdown-menu {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: var(--glass-gradient);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-card);
   padding: 0.5rem 0;
   min-width: 180px;
 }
 
 .profile-dropdown-item {
-  font-family: var(--font-mono) !important;
+  font-family: var(--font-sans), sans-serif !important;
   display: block;
   width: 100%;
   padding: 0.6rem 1rem;
@@ -91,13 +90,19 @@ onUnmounted(() => {
   background: transparent;
   cursor: pointer;
   font-size: 0.95rem;
-  color: #000;
+  font-weight: 500;
+  color: #fff;
 }
 
 .profile-dropdown-item:hover {
-  background: var(--equipt-orange);
-  color: white;
-  transition: all 0.3s ease;
-  border-radius: 0.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(180deg,
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  padding: 0.5rem 1rem;
 }
 </style>

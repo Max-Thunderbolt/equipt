@@ -26,10 +26,12 @@ const userStore = useUserStore()
   align-items: center;
   justify-content: center;
   gap: 1rem;
+  background: var(--color-background);
 }
 
 .auth-loading-text {
-  font-family: var(--font-mono), monospace;
+  font-family: var(--font-sans), sans-serif;
   color: var(--color-text-secondary);
+  font-size: 0.9375rem;
 }
 </style>
