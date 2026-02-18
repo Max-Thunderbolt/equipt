@@ -1,4 +1,2 @@
-// Utilities
-import { createPinia } from 'pinia'
-
-export default createPinia()
+export { useUserStore } from './user'
+export { useAppStore } from './app'

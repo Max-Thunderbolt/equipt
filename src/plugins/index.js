@@ -4,14 +4,14 @@
  * Automatically included in `./src/main.js`
  */
 
-// Plugins
-import vuetify from './vuetify'
-import pinia from '@/stores'
+// Plugins (Pinia first so router guards can use stores)
+import pinia from '@/stores/pinia'
 import router from '@/router'
+import vuetify from './vuetify'
 
 export function registerPlugins (app) {
   app
-    .use(vuetify)
-    .use(router)
     .use(pinia)
+    .use(router)
+    .use(vuetify)
 }

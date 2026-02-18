@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { authStateListener } from '../services/auth'
+import { authStateListener } from '@/services/auth'
 
 export const useUserStore = defineStore('user', {
     state: () => ({

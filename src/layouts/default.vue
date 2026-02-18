@@ -1,13 +1,12 @@
 <template>
-  <topNav />
+  <TopNav />
   <v-main>
     <router-view />
   </v-main>
 </template>
 
 <script setup>
-//
-import TopNav from './topNav.vue';
+import TopNav from './TopNav.vue'
 </script>
 
 <style scoped></style>

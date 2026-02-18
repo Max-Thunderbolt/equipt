@@ -1,36 +1,66 @@
 <template>
-    <div class="projects-dropdown">
-        <div class="projects-dropdown-caret"></div>
-        <div class="projects-dropdown-menu">
-            <button class="projects-dropdown-item projects-dropdown-item--highlight"
-                @click="selectListItem(listItems[0])">
-                New Project
-            </button>
-            <button class="projects-dropdown-item" @click="selectListItem(listItems[1])">
-                My Projects
-            </button>
-            <div class="projects-dropdown-divider"></div>
-            <div class="projects-dropdown-invites">
-                <v-icon color="#7dd3fc" size="24">mdi-email-outline</v-icon>
-                <span>No pending invites</span>
-            </div>
-        </div>
+  <div ref="dropdownRef" class="projects-dropdown">
+    <div class="projects-dropdown-caret" />
+    <div class="projects-dropdown-menu">
+      <button
+        type="button"
+        class="projects-dropdown-item projects-dropdown-item--highlight"
+        @click="selectListItem(listItems[0])"
+      >
+        New Project
+      </button>
+      <button
+        type="button"
+        class="projects-dropdown-item"
+        @click="selectListItem(listItems[1])"
+      >
+        My Projects
+      </button>
+      <div class="projects-dropdown-divider" />
+      <div class="projects-dropdown-invites">
+        <v-icon color="#7dd3fc" size="24">mdi-email-outline</v-icon>
+        <span>No pending invites</span>
+      </div>
     </div>
+  </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue'
+
+defineProps({
+  open: { type: Boolean, default: true },
+})
+
+const emit = defineEmits(['close'])
+
+const dropdownRef = ref(null)
 
 const listItems = ref([
-    { id: 1, name: 'Create New Project' },
-    { id: 2, name: 'My Projects' },
-]);
+  { id: 1, name: 'Create New Project' },
+  { id: 2, name: 'My Projects' },
+])
 
-const selectListItem = (listItem) => {
-    console.log(listItem);
+function selectListItem(listItem) {
+  console.log(listItem)
+  emit('close')
 }
 
+function onDocumentClick(event) {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+    emit('close')
+  }
+}
 
+onMounted(() => {
+  setTimeout(() => {
+    document.addEventListener('click', onDocumentClick, true)
+  }, 0)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocumentClick, true)
+})
 </script>
 
 <style scoped>

@@ -64,20 +64,20 @@
   --color-equipt-orange-20: rgba(237, 150, 62, 0.2);
   --color-equipt-orange-10: rgba(237, 150, 62, 0.1);
 
-  /* Semantic Colors */
-  --color-background: var(--color-black);
-  --color-text: var(--color-white);
+  /* Semantic Colors (reference base colors above) */
+  --color-background: var(--black);
+  --color-text: var(--white);
   --color-text-secondary: var(--color-white-70);
-  --color-accent: var(--color-equipt-orange);
+  --color-accent: var(--equipt-orange);
   --color-accent-hover: var(--color-equipt-orange-90);
   --color-border: var(--color-white-10);
   --color-border-hover: var(--color-white-20);
   --color-shadow: var(--color-black-50);
 }
 
-.container { 
-    background-color: var(--color-black);
-    color: var(--color-white);
+.container {
+    background-color: var(--color-background);
+    color: var(--color-text);
     padding: 20px;
     border-radius: 16px;
     box-shadow: 0 0 16px 0 rgba(var(--white-RGB), 0.5);
