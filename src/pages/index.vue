@@ -110,8 +110,9 @@
             </router-link>
           </template>
           <template v-else>
-            <router-link to="/projects" class="cta-button cta-button--primary">Projects</router-link>
-            <router-link to="/explore" class="cta-button cta-button--secondary">Explore</router-link>
+            <router-link to="/projects" class="cta-button cta-button--primary">Projects <img :src="arrowSvg" alt=""
+                class="cta-button__arrow" aria-hidden="true"></router-link>
+            <router-link to="/explore" class="cta-button cta-button--primary">Explore</router-link>
           </template>
         </div>
       </section>
