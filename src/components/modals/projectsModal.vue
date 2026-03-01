@@ -19,8 +19,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useClickOutside } from '@/composables/ui/useClickOutside'
 
 defineProps({
   open: { type: Boolean, default: true },
@@ -29,6 +30,8 @@ defineProps({
 const emit = defineEmits(['close'])
 const router = useRouter()
 const dropdownRef = ref(null)
+
+useClickOutside(dropdownRef, () => emit('close'))
 
 const listItems = ref([
   { id: 1, name: 'Create New Project', path: '/projects', query: { new: '1' } },
@@ -39,22 +42,6 @@ function selectListItem(listItem) {
   router.push({ path: listItem.path, query: listItem.query || {} })
   emit('close')
 }
-
-function onDocumentClick(event) {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
-    emit('close')
-  }
-}
-
-onMounted(() => {
-  setTimeout(() => {
-    document.addEventListener('click', onDocumentClick, true)
-  }, 0)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', onDocumentClick, true)
-})
 </script>
 
 <style scoped>

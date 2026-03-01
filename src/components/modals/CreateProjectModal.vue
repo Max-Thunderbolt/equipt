@@ -79,6 +79,9 @@
             >
             <label for="create-project-public" class="create-project-modal__label create-project-modal__label--inline">Public project</label>
           </div>
+          <div v-if="error" class="create-project-modal__error">
+            {{ error }}
+          </div>
           <div class="create-project-modal__actions">
             <button type="button" class="create-project-modal__btn create-project-modal__btn--secondary" @click="handleClose">
               Cancel
@@ -94,9 +97,8 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
-import Server from '@/services/server'
-import { useUserStore } from '@/stores'
+import { watch } from 'vue'
+import { useCreateProjectModal } from '@/composables/projects/useCreateProjectModal'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -104,82 +106,30 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'created'])
 
-const userStore = useUserStore()
-
-const form = ref({
-  name: '',
-  description: '',
-  isPublic: false,
-})
-const searchQuery = ref('')
-const searchResults = ref([])
-const showSearchResults = ref(false)
-const selectedCollaborators = ref([])
-const saving = ref(false)
-
-let searchTimeout = null
-
-watch(() => props.open, (isOpen) => {
-  if (isOpen) {
-    form.value = { name: '', description: '', isPublic: false }
-    searchQuery.value = ''
-    searchResults.value = []
-    selectedCollaborators.value = []
-    showSearchResults.value = false
-  }
+const {
+  form,
+  searchQuery,
+  searchResults,
+  showSearchResults,
+  selectedCollaborators,
+  saving,
+  error,
+  resetForm,
+  addCollaborator,
+  removeCollaborator,
+  handleClose,
+  onSubmit,
+} = useCreateProjectModal({
+  onClose: () => emit('close'),
+  onCreated: (project) => emit('created', project),
 })
 
-watch(searchQuery, (q) => {
-  clearTimeout(searchTimeout)
-  if (!q || q.length < 2) {
-    searchResults.value = []
-    return
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) resetForm()
   }
-  searchTimeout = setTimeout(async () => {
-    try {
-      const list = await Server.searchUsers(q)
-      const ids = new Set(selectedCollaborators.value.map(u => u._id))
-      searchResults.value = (list || []).filter(u => !ids.has(u._id) && u._id !== userStore.uid)
-    } catch (err) {
-      searchResults.value = []
-    }
-  }, 300)
-})
-
-function addCollaborator(user) {
-  if (selectedCollaborators.value.some(u => u._id === user._id)) return
-  selectedCollaborators.value = [...selectedCollaborators.value, user]
-  searchQuery.value = ''
-  searchResults.value = []
-  showSearchResults.value = false
-}
-
-function removeCollaborator(user) {
-  selectedCollaborators.value = selectedCollaborators.value.filter(u => u._id !== user._id)
-}
-
-function handleClose() {
-  emit('close')
-}
-
-async function onSubmit() {
-  if (!form.value.name.trim()) return
-  saving.value = true
-  try {
-    const project = await Server.createProject({
-      name: form.value.name.trim(),
-      description: (form.value.description || '').trim(),
-      collaborators: selectedCollaborators.value.map(u => u._id),
-      isPublic: form.value.isPublic,
-    })
-    emit('created', project)
-    handleClose()
-  } catch (err) {
-    console.error('Create project failed', err)
-  } finally {
-    saving.value = false
-  }
-}
+)
 </script>
 
 <style scoped>
@@ -373,6 +323,17 @@ async function onSubmit() {
   width: 1rem;
   height: 1rem;
   accent-color: var(--equipt-orange);
+}
+
+.create-project-modal__error {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.875rem;
+  color: var(--color-error, #ef4444);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--border-radius);
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .create-project-modal__actions {

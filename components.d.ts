@@ -11,13 +11,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AppFooter: typeof import('./src/components/AppFooter.vue')['default']
     AuthCard: typeof import('./src/components/auth/AuthCard.vue')['default']
     CreateProjectModal: typeof import('./src/components/modals/CreateProjectModal.vue')['default']
-    HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     LoginForm: typeof import('./src/components/auth/LoginForm.vue')['default']
     ProfileDropdown: typeof import('./src/components/dropdowns/ProfileDropdown.vue')['default']
-    ProfileModal: typeof import('./src/components/modals/profileModal.vue')['default']
     ProjectsModal: typeof import('./src/components/modals/projectsModal.vue')['default']
     Register: typeof import('./src/components/register.vue')['default']
     RegisterForm: typeof import('./src/components/auth/RegisterForm.vue')['default']

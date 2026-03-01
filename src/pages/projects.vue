@@ -71,7 +71,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import Server from '@/services/server'
+import { useProjectList } from '@/composables/projects/useProjectList'
 import CreateProjectModal from '@/components/modals/CreateProjectModal.vue'
 
 definePage({
@@ -81,8 +81,8 @@ definePage({
 })
 
 const route = useRoute()
-const projects = ref([])
-const loading = ref(true)
+const { projects, loading, fetchProjects } = useProjectList()
+
 const searchQuery = ref('')
 const filterMode = ref('recent')
 const viewMode = ref('grid')
@@ -134,18 +134,6 @@ function openCreateModal() {
 
 function onProjectCreated() {
   fetchProjects()
-}
-
-async function fetchProjects() {
-  loading.value = true
-  try {
-    projects.value = await Server.getProjects() || []
-  } catch (err) {
-    console.error('Failed to load projects', err)
-    projects.value = []
-  } finally {
-    loading.value = false
-  }
 }
 
 watch(

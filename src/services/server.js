@@ -30,9 +30,9 @@ axiosInstance.interceptors.request.use(
 )
 
 class Server {
-    constructor() {
-        this.server = axiosInstance;
-    }
+  constructor() {
+    this.server = axiosInstance;
+  }
 
   async getUsers() {
     const response = await this.server.get('/users')

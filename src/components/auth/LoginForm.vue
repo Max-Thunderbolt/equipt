@@ -1,9 +1,9 @@
 <template>
   <form class="auth-form" @submit.prevent="handleSubmit">
     <v-text-field v-model="email" label="Email" type="email" variant="outlined" density="comfortable" class="auth-field"
-      :error-messages="emailError" @blur="emailError = ''" />
+      :error-messages="emailError" @blur="clearEmailError" />
     <v-text-field v-model="password" label="Password" type="password" variant="outlined" density="comfortable"
-      class="auth-field" :error-messages="passwordError" @blur="passwordError = ''" />
+      class="auth-field" :error-messages="passwordError" @blur="clearPasswordError" />
     <v-alert v-if="error" type="error" density="compact" class="auth-alert">
       {{ error }}
     </v-alert>
@@ -19,7 +19,8 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { toRef } from 'vue'
+import { useAuthForm } from '@/composables/auth/useAuthForm'
 
 const props = defineProps({
   loading: { type: Boolean, default: false },
@@ -29,30 +30,11 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'google'])
 
-const email = ref('')
-const password = ref('')
-const emailError = ref('')
-const passwordError = ref('')
-
-watch(() => props.error, (v) => { if (!v) emailError.value = ''; passwordError.value = '' })
-
-function validate() {
-  let valid = true
-  if (!email.value.trim()) {
-    emailError.value = 'Email is required'
-    valid = false
-  }
-  if (!password.value) {
-    passwordError.value = 'Password is required'
-    valid = false
-  }
-  return valid
-}
-
-function handleSubmit() {
-  if (!validate()) return
-  emit('submit', { email: email.value.trim(), password: password.value })
-}
+const { email, password, emailError, passwordError, handleSubmit, clearEmailError, clearPasswordError } = useAuthForm({
+  mode: 'login',
+  error: toRef(props, 'error'),
+  onSubmit: (payload) => emit('submit', payload),
+})
 </script>
 
 <style scoped>
