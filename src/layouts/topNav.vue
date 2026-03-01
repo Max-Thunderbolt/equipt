@@ -27,7 +27,7 @@
           </div>
         </template>
         <!-- Project details navigation links -->
-        <template v-if="route.path.includes('/projects/')">
+        <template v-if="route.path.includes('/projects/') && projectId">
           <div class="nav-link-item">
             <router-link to="/projects" class="sideNavBackToProjects">
               <span class="sideNavBackToProjectsButton">
@@ -112,6 +112,8 @@ const isManageOpen = ref(false)
 
 const isProjectsActive = computed(() => route.path === '/projects')
 
+const projectId = computed(() => route.params.id)
+
 const projectsDropdownItems = [
   { type: 'link', name: 'New Project', to: '/projects', query: { new: '1' }, highlight: true },
   { type: 'link', name: 'My Projects', to: '/projects' },
@@ -119,20 +121,20 @@ const projectsDropdownItems = [
   { type: 'invites', name: 'No pending invites', icon: 'mdi-email-outline' },
 ]
 
-const overviewDropdownItems = [
-  { type: 'button', name: 'Dashboard' },
-  { type: 'button', name: 'Files' },
-  { type: 'button', name: 'Assets' },
-]
+const overviewDropdownItems = computed(() => [
+  { type: 'link', name: 'Dashboard', to: `/projects/${projectId.value}`, query: { view: 'dashboard' } },
+  { type: 'link', name: 'Files', to: `/projects/${projectId.value}`, query: { view: 'files' } },
+  { type: 'link', name: 'Assets', to: `/projects/${projectId.value}`, query: { view: 'assets' } },
+])
 
-const collaborateDropdownItems = [
-  { type: 'button', name: 'Discussions' },
-  { type: 'button', name: 'Tasks' },
-]
+const collaborateDropdownItems = computed(() => [
+  { type: 'link', name: 'Discussions', to: `/projects/${projectId.value}`, query: { view: 'discussions' } },
+  { type: 'link', name: 'Tasks', to: `/projects/${projectId.value}`, query: { view: 'tasks' } },
+])
 
-const manageDropdownItems = [
-  { type: 'button', name: 'Settings' },
-]
+const manageDropdownItems = computed(() => [
+  { type: 'link', name: 'Settings', to: `/projects/${projectId.value}`, query: { view: 'settings' } },
+])
 
 function onAvatarError(e) {
   e.target.src = defaultAvatar

@@ -13,7 +13,9 @@ declare module 'vue' {
   export interface GlobalComponents {
     AuthCard: typeof import('./src/components/auth/AuthCard.vue')['default']
     Breadcrumbs: typeof import('./src/components/Breadcrumbs.vue')['default']
+    CreateButton: typeof import('./src/components/buttons/CreateButton.vue')['default']
     CreateProjectModal: typeof import('./src/components/modals/CreateProjectModal.vue')['default']
+    CreateTaskModal: typeof import('./src/components/modals/CreateTaskModal.vue')['default']
     Dropdown: typeof import('./src/components/dropdowns/Dropdown.vue')['default']
     LoginForm: typeof import('./src/components/auth/LoginForm.vue')['default']
     OverviewModal: typeof import('./src/components/modals/OverviewModal.vue')['default']
@@ -25,5 +27,8 @@ declare module 'vue' {
     RegisterForm: typeof import('./src/components/auth/RegisterForm.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    TaskBoardView: typeof import('./src/components/projects/views/TaskBoardView.vue')['default']
+    TaskListView: typeof import('./src/components/projects/views/TaskListView.vue')['default']
+    TasksView: typeof import('./src/components/projects/views/TasksView.vue')['default']
   }
 }

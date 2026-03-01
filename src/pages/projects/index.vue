@@ -5,9 +5,7 @@
         <h1 class="projects-header__title">Projects</h1>
         <p class="projects-header__subtitle">{{ projectCount }} projects</p>
       </div>
-      <button type="button" class="projects-header__btn project-header__btn-glass" @click="openCreateModal">
-        + New Project
-      </button>
+      <CreateButton name="New Project" icon="mdi-plus" @click="openCreateModal" />
     </header>
 
     <div class="projects-toolbar">
@@ -73,8 +71,9 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRouter } from 'vue-router'
-import { useProjectList } from '@/composables/projects/useProjectList'
+import CreateButton from '@/components/buttons/CreateButton.vue'
 import CreateProjectModal from '@/components/modals/CreateProjectModal.vue'
+import { useProjectList } from '@/composables/projects/useProjectList'
 
 definePage({
   meta: {
@@ -206,23 +205,6 @@ async function navigateToProject(projectId) {
   color: #fff;
   cursor: pointer;
   white-space: nowrap;
-}
-
-.project-header__btn-glass {
-  background: linear-gradient(180deg, rgba(237, 150, 62, 0.5) 0%, rgba(237, 150, 62, 0.35) 100%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: var(--radius-card);
-  padding: 0.6rem 1.25rem;
-}
-
-.projects-header__btn:hover {
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid linear-gradient(180deg, rgba(237, 150, 62, 0.5) 0%, rgba(237, 150, 62, 0.35) 100%);
-
 }
 
 .projects-toolbar {

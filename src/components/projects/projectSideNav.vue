@@ -20,13 +20,13 @@
             <div class="sideNavSection">
                 <h3 class="sideNavSectionTitle">Overview</h3>
                 <div class="sideNavSectionContent">
-                    <div class="sideNavSectionItem">
+                    <div class="sideNavSectionItem" @click="navigateToView('dashboard')">
                         <h4 class="sideNavSectionItemTitle"><v-icon size="18">mdi-view-dashboard</v-icon> Dashboard</h4>
                     </div>
-                    <div class="sideNavSectionItem">
+                    <div class="sideNavSectionItem" @click="navigateToView('files')">
                         <h4 class="sideNavSectionItemTitle"><v-icon size="18">mdi-file</v-icon> Files</h4>
                     </div>
-                    <div class="sideNavSectionItem">
+                    <div class="sideNavSectionItem" @click="navigateToView('assets')">
                         <h4 class="sideNavSectionItemTitle"><v-icon size="18">mdi-image</v-icon> Assets</h4>
                     </div>
                 </div>
@@ -36,10 +36,10 @@
             <div class="sideNavSection">
                 <h3 class="sideNavSectionTitle">Collaborate</h3>
                 <div class="sideNavSectionContent">
-                    <div class="sideNavSectionItem">
+                    <div class="sideNavSectionItem" @click="navigateToView('discussions')">
                         <h4 class="sideNavSectionItemTitle"><v-icon size="18">mdi-message</v-icon> Discussions</h4>
                     </div>
-                    <div class="sideNavSectionItem">
+                    <div class="sideNavSectionItem" @click="navigateToView('tasks')">
                         <h4 class="sideNavSectionItemTitle"><v-icon size="18">mdi-check</v-icon> Tasks</h4>
                     </div>
                 </div>
@@ -49,7 +49,7 @@
             <div class="sideNavSection">
                 <h3 class="sideNavSectionTitle">Manage</h3>
                 <div class="sideNavSectionContent">
-                    <div class="sideNavSectionItem">
+                    <div class="sideNavSectionItem" @click="navigateToView('settings')">
                         <h4 class="sideNavSectionItemTitle"><v-icon size="18">mdi-cog</v-icon> Settings</h4>
                     </div>
                 </div>
@@ -93,6 +93,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 const props = defineProps({
     project: {
@@ -100,6 +101,16 @@ const props = defineProps({
         required: true
     }
 })
+
+const router = useRouter()
+const route = useRoute()
+
+const navigateToView = (viewName) => {
+    router.push({ 
+        path: `/projects/${props.project._id}`, 
+        query: { view: viewName } 
+    })
+}
 
 const status = computed(() => {
     return "Created " + formatDate(props.project.createdAt) + "\nLast Updated " + formatDate(props.project.updatedAt)
