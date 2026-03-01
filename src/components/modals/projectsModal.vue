@@ -20,22 +20,23 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 defineProps({
   open: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['close'])
-
+const router = useRouter()
 const dropdownRef = ref(null)
 
 const listItems = ref([
-  { id: 1, name: 'Create New Project' },
-  { id: 2, name: 'My Projects' },
+  { id: 1, name: 'Create New Project', path: '/projects', query: { new: '1' } },
+  { id: 2, name: 'My Projects', path: '/projects', query: {} },
 ])
 
 function selectListItem(listItem) {
-  console.log(listItem)
+  router.push({ path: listItem.path, query: listItem.query || {} })
   emit('close')
 }
 

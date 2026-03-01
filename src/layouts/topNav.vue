@@ -26,13 +26,8 @@
         <template v-if="userStore.isLoggedIn">
           <div class="profile">
             <button class="profile-button" @click="toggleProfile">
-              <img
-                :src="userStore.photoURL || defaultAvatar"
-                alt="profile"
-                class="profile-img"
-                :class="{ 'profile-img--default': !userStore.photoURL }"
-                @error="onAvatarError"
-              >
+              <img :src="userStore.photoURL || defaultAvatar" alt="profile" class="profile-img"
+                :class="{ 'profile-img--default': !userStore.photoURL }" @error="onAvatarError">
             </button>
             <ProfileDropdown v-if="isProfileOpen" :open="isProfileOpen" @close="closeProfile" />
           </div>
@@ -173,13 +168,13 @@ const closeProfile = () => {
 }
 
 .nav-auth-link:hover {
-  background: linear-gradient(180deg,
+  /* background: linear-gradient(180deg,
       rgba(121, 121, 183, 0.2) 0%,
       rgba(242, 104, 55, 0.2) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #fff;
+  color: #fff; */
 }
 
 .nav-auth-link--primary {
@@ -206,7 +201,7 @@ const closeProfile = () => {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-  padding: 0.5rem 1rem;
+  padding: 0.25rem 0.25rem;
 }
 
 .profile-button {

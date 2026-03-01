@@ -43,6 +43,23 @@ class Server {
     const response = await this.server.post('/users', { userData })
     return response.data
   }
+
+  async getProjects() {
+    const response = await this.server.get('/projects')
+    return response.data
+  }
+
+  async createProject(projectData) {
+    const response = await this.server.post('/projects', projectData)
+    return response.data
+  }
+
+  async searchUsers(query) {
+    const response = await this.server.get('/users/search', {
+      params: { q: query || '' },
+    })
+    return response.data
+  }
 }
 
 export default new Server()
