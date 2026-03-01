@@ -7,23 +7,70 @@
         </router-link>
       </div>
       <div class="nav-links">
-        <template v-if="userStore.isLoggedIn">
-          <div class="nav-link-item">
-            <button
-              type="button"
-              class="nav-link-button-projects"
-              :class="{ 'nav-link-button--active': isProjectsActive }"
-              @click="toggleProjects"
-            >
+        <template v-if="userStore.isLoggedIn && !route.path.includes('/projects/')">
+          <div
+            class="nav-link-item nav-dropdown-trigger"
+            @mouseenter="openProjects"
+            @mouseleave="closeProjects"
+          >
+            <button type="button" class="sideNavBackToProjects" :class="{ 'nav-link-button--active': isProjectsActive }">
               Projects
               <v-icon size="16">mdi-chevron-down</v-icon>
             </button>
-            <ProjectsModal v-if="isProjectsOpen" :open="isProjectsOpen" @close="closeProjects" />
+            <Dropdown v-if="isProjectsOpen" :open="isProjectsOpen" :items="projectsDropdownItems"
+              @close="closeProjects" />
           </div>
           <div class="nav-link-item">
-            <router-link to="/explore" class="nav-link-button-todos" @click="closeProjects">
+            <router-link to="/explore" class="sideNavBackToProjects" @click="closeProjects">
               Explore
             </router-link>
+          </div>
+        </template>
+        <!-- Project details navigation links -->
+        <template v-if="route.path.includes('/projects/')">
+          <div class="nav-link-item">
+            <router-link to="/projects" class="sideNavBackToProjects">
+              <span class="sideNavBackToProjectsButton">
+                <v-icon size="20">mdi-arrow-left</v-icon>
+              </span>
+              <span class="sideNavBackToProjectsText">projects</span>
+            </router-link>
+          </div>
+          <div
+            class="nav-link-item nav-dropdown-trigger"
+            @mouseenter="openOverview"
+            @mouseleave="closeOverview"
+          >
+            <button type="button" class="sideNavBackToProjects">
+              Overview
+              <v-icon size="16">mdi-chevron-down</v-icon>
+            </button>
+            <Dropdown v-if="isOverviewOpen" :open="isOverviewOpen" :items="overviewDropdownItems"
+              @close="closeOverview" />
+          </div>
+          <div
+            class="nav-link-item nav-dropdown-trigger"
+            @mouseenter="openCollaborate"
+            @mouseleave="closeCollaborate"
+          >
+            <button type="button" class="sideNavBackToProjects">
+              Collaborate
+              <v-icon size="16">mdi-chevron-down</v-icon>
+            </button>
+            <Dropdown v-if="isCollaborateOpen" :open="isCollaborateOpen" :items="collaborateDropdownItems"
+              @close="closeCollaborate" />
+          </div>
+
+          <div
+            class="nav-link-item nav-dropdown-trigger"
+            @mouseenter="openManage"
+            @mouseleave="closeManage"
+          >
+            <button type="button" class="sideNavBackToProjects">
+              Manage
+              <v-icon size="16">mdi-chevron-down</v-icon>
+            </button>
+            <Dropdown v-if="isManageOpen" :open="isManageOpen" :items="manageDropdownItems" @close="closeManage" />
           </div>
         </template>
       </div>
@@ -48,39 +95,87 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores'
-import ProjectsModal from '@/components/modals/projectsModal.vue'
+import Dropdown from '@/components/dropdowns/Dropdown.vue'
 import ProfileDropdown from '@/components/dropdowns/ProfileDropdown.vue'
 import logoImg from '@/assets/equiptBanner.png'
 import defaultAvatar from '@/assets/user.png'
 
 const userStore = useUserStore()
 const route = useRoute()
-const router = useRouter()
 const isProjectsOpen = ref(false)
 const isProfileOpen = ref(false)
+const isOverviewOpen = ref(false)
+const isCollaborateOpen = ref(false)
+const isManageOpen = ref(false)
 
-const isProjectsActive = computed(() => route.path === '/projects' || route.path.startsWith('/projects/'))
+const isProjectsActive = computed(() => route.path === '/projects')
+
+const projectsDropdownItems = [
+  { type: 'link', name: 'New Project', to: '/projects', query: { new: '1' }, highlight: true },
+  { type: 'link', name: 'My Projects', to: '/projects' },
+  { type: 'divider' },
+  { type: 'invites', name: 'No pending invites', icon: 'mdi-email-outline' },
+]
+
+const overviewDropdownItems = [
+  { type: 'button', name: 'Dashboard' },
+  { type: 'button', name: 'Files' },
+  { type: 'button', name: 'Assets' },
+]
+
+const collaborateDropdownItems = [
+  { type: 'button', name: 'Discussions' },
+  { type: 'button', name: 'Tasks' },
+]
+
+const manageDropdownItems = [
+  { type: 'button', name: 'Settings' },
+]
 
 function onAvatarError(e) {
   e.target.src = defaultAvatar
 }
 
-const toggleProjects = () => {
-  isProjectsOpen.value = !isProjectsOpen.value
+function openProjects() {
+  isProjectsOpen.value = true
 }
 
-const toggleProfile = () => {
+function openOverview() {
+  isOverviewOpen.value = true
+}
+
+function openCollaborate() {
+  isCollaborateOpen.value = true
+}
+
+function openManage() {
+  isManageOpen.value = true
+}
+
+function toggleProfile() {
   isProfileOpen.value = !isProfileOpen.value
 }
 
-const closeProjects = () => {
+function closeProjects() {
   isProjectsOpen.value = false
 }
 
-const closeProfile = () => {
+function closeProfile() {
   isProfileOpen.value = false
+}
+
+function closeOverview() {
+  isOverviewOpen.value = false
+}
+
+function closeCollaborate() {
+  isCollaborateOpen.value = false
+}
+
+function closeManage() {
+  isManageOpen.value = false
 }
 </script>
 
@@ -99,12 +194,16 @@ const closeProfile = () => {
   pointer-events: auto;
   border-radius: 9999px;
   background: linear-gradient(180deg,
-      rgba(121, 121, 183, 0.08) 0%,
-      rgba(242, 104, 55, 0.08) 100%);
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid linear-gradient(180deg,
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
+  box-shadow: 0 4px 24px linear-gradient(180deg,
+      rgba(121, 121, 183, 0.35) 0%,
+      rgba(242, 104, 55, 0.35) 100%);
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   grid-template-rows: 1fr;
@@ -202,16 +301,6 @@ const closeProfile = () => {
   transition: all 0.2s ease;
 }
 
-.nav-auth-link:hover {
-  /* background: linear-gradient(180deg,
-      rgba(121, 121, 183, 0.2) 0%,
-      rgba(242, 104, 55, 0.2) 100%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: #fff; */
-}
-
 .nav-auth-link--primary {
   color: #fff;
 }
@@ -259,5 +348,17 @@ const closeProfile = () => {
 .profile-img--default {
   /* Tint placeholder to equipt orange #ED963E */
   filter: brightness(0) invert(68%) sepia(52%) saturate(1200%) hue-rotate(360deg);
+}
+
+.sideNavBackToProjects {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  transition: color 0.2s;
 }
 </style>

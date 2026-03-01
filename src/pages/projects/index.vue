@@ -209,7 +209,7 @@ async function navigateToProject(projectId) {
 }
 
 .project-header__btn-glass {
-  background: linear-gradient(180deg, rgba(237, 150, 62, 0.35) 0%, rgba(237, 150, 62, 0.15) 100%);
+  background: linear-gradient(180deg, rgba(237, 150, 62, 0.5) 0%, rgba(237, 150, 62, 0.35) 100%);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: var(--glass-border);
@@ -221,8 +221,8 @@ async function navigateToProject(projectId) {
 .projects-header__btn:hover {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid linear-gradient(180deg, rgba(237, 150, 62, 0.35) 0%, rgba(237, 150, 62, 0.15) 100%);
-  box-shadow: inset 1px 1px 1px 1px rgba(237, 150, 62);
+  border: 1px solid linear-gradient(180deg, rgba(237, 150, 62, 0.5) 0%, rgba(237, 150, 62, 0.35) 100%);
+
 }
 
 .projects-toolbar {
@@ -322,7 +322,7 @@ async function navigateToProject(projectId) {
 }
 
 .projects-toolbar__view-btn--active {
-  background: linear-gradient(180deg, rgba(237, 150, 62, 0.35) 0%, rgba(237, 150, 62, 0.15) 100%);
+  background: linear-gradient(180deg, rgba(237, 150, 62, 0.5) 0%, rgba(237, 150, 62, 0.35) 100%);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: var(--glass-border);
@@ -374,10 +374,7 @@ async function navigateToProject(projectId) {
 .project-card:hover {
   transform: translateY(-4px);
   border-color: rgba(255, 196, 0, 0.35);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.18),
-    0 0 0 1px rgba(255, 196, 0, 0.08);
-  background: linear-gradient(180deg, rgba(237, 150, 62, 0.35) 0%, rgba(237, 150, 62, 0.15) 100%);
+  background: linear-gradient(180deg, rgba(237, 150, 62, 0.5) 0%, rgba(237, 150, 62, 0.35) 100%);
 }
 
 .project-card__thumb {

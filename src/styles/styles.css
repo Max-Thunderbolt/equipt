@@ -72,12 +72,15 @@
   --color-text-secondary: var(--color-white-70);
   --color-accent: var(--equipt-orange);
   --color-accent-hover: var(--color-equipt-orange-90);
-  --color-border: var(--color-white-10);
+  --color-border: var(--color-white-50);
   --color-border-hover: var(--color-white-20);
   --color-shadow: var(--color-black-50);
 
   /* Glass card (index create-card style) */
   --glass-gradient: linear-gradient(180deg, rgba(220, 190, 230, 0.4) 0%, rgba(180, 220, 230, 0.4) 100%);
+  --glass-gradient-white: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.4) 100%);
+  --glass-gradient-grey: linear-gradient(180deg, rgba(128, 128, 128, 0.4) 0%, rgba(128, 128, 128, 0.4) 100%);
+  --glass-gradient-orange: linear-gradient(180deg, rgba(121, 121, 183, 0.35) 0%, rgba(242, 104, 55, 0.35) 100%);
   --glass-border: 1px solid rgba(255, 255, 255, 0.12);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   --radius-card: 24px;

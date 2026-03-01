@@ -10,9 +10,14 @@
       </div>
     </template>
     <template v-else-if="project">
-      <projectSideNav :project="projectForNav" />
+      <!-- <projectSideNav :project="project" /> -->
       <main class="project-details-main">
-        <!-- Main content area for dashboard, files, etc. -->
+        <!-- Main content area -->
+        <!-- <v-breadcrumbs
+          :items="[{ text: 'Projects', to: '/projects' }, { text: project.name, to: `/projects/${project._id}` }]"
+          class="project-details-breadcrumbs" /> -->
+        <projectDashboard :project="project" />
+
       </main>
     </template>
   </div>
@@ -21,8 +26,9 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import projectSideNav from '@/components/projectSideNav.vue'
+import projectSideNav from '@/components/projects/projectSideNav.vue'
 import { useProject } from '@/composables/projects/useProject'
+import { useAppStore } from '@/stores'
 
 definePage({
   meta: {
@@ -31,29 +37,17 @@ definePage({
 })
 
 const route = useRoute()
+const appStore = useAppStore()
 const projectId = computed(() => route.params.id)
 
 const { project, loading, error } = useProject(projectId)
-
-// Sidebar expects teamMembers; API returns collaborators (uids). Normalize for display.
-const projectForNav = computed(() => {
-  if (!project.value) return null
-  return {
-    ...project.value,
-    teamMembers: (project.value.collaborators || []).map((uid) => ({
-      id: uid,
-      name: uid,
-      avatar: '',
-      role: 'Collaborator',
-    })),
-  }
-})
 </script>
 
 <style scoped>
 .project-details-page {
   min-height: 100vh;
   display: flex;
+  align-items: stretch;
   background: var(--color-background);
 }
 
@@ -79,6 +73,18 @@ const projectForNav = computed(() => {
 
 .project-details-main {
   flex: 1;
-  padding: 2rem;
+  margin-top: 5em;
+  margin-left: 5em;
+  margin-right: 5em;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.project-details-breadcrumbs {
+  margin-top: 2rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--color-text);
 }
 </style>

@@ -12,10 +12,14 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AuthCard: typeof import('./src/components/auth/AuthCard.vue')['default']
+    Breadcrumbs: typeof import('./src/components/Breadcrumbs.vue')['default']
     CreateProjectModal: typeof import('./src/components/modals/CreateProjectModal.vue')['default']
+    Dropdown: typeof import('./src/components/dropdowns/Dropdown.vue')['default']
     LoginForm: typeof import('./src/components/auth/LoginForm.vue')['default']
+    OverviewModal: typeof import('./src/components/modals/OverviewModal.vue')['default']
     ProfileDropdown: typeof import('./src/components/dropdowns/ProfileDropdown.vue')['default']
-    ProjectSideNav: typeof import('./src/components/projectSideNav.vue')['default']
+    ProjectDashboard: typeof import('./src/components/projects/projectDashboard.vue')['default']
+    ProjectSideNav: typeof import('./src/components/projects/projectSideNav.vue')['default']
     ProjectsModal: typeof import('./src/components/modals/projectsModal.vue')['default']
     Register: typeof import('./src/components/register.vue')['default']
     RegisterForm: typeof import('./src/components/auth/RegisterForm.vue')['default']

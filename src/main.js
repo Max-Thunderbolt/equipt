@@ -12,6 +12,7 @@ import App from './App.vue'
 
 import 'unfonts.css'
 import '/src/styles/styles.css'
+import '/src/styles/dropdown.css'
 
 const app = createApp(App)
 registerPlugins(app)
