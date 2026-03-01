@@ -49,6 +49,11 @@ class Server {
     return response.data
   }
 
+  async getProject(id) {
+    const response = await this.server.get(`/projects/${id}`)
+    return response.data
+  }
+
   async createProject(projectData) {
     const response = await this.server.post('/projects', projectData)
     return response.data

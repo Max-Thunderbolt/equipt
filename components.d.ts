@@ -15,6 +15,7 @@ declare module 'vue' {
     CreateProjectModal: typeof import('./src/components/modals/CreateProjectModal.vue')['default']
     LoginForm: typeof import('./src/components/auth/LoginForm.vue')['default']
     ProfileDropdown: typeof import('./src/components/dropdowns/ProfileDropdown.vue')['default']
+    ProjectSideNav: typeof import('./src/components/projectSideNav.vue')['default']
     ProjectsModal: typeof import('./src/components/modals/projectsModal.vue')['default']
     Register: typeof import('./src/components/register.vue')['default']
     RegisterForm: typeof import('./src/components/auth/RegisterForm.vue')['default']

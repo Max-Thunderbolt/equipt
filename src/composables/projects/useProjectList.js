@@ -20,6 +20,6 @@ export function useProjectList() {
   return {
     projects,
     loading,
-    fetchProjects,
+    fetchProjects
   }
 }

@@ -43,7 +43,8 @@
       <p class="projects-empty__text">No projects yet. Create one to get started.</p>
     </div>
     <div v-else class="projects-grid" :class="{ 'projects-grid--list': viewMode === 'list' }">
-      <article v-for="(project, i) in filteredProjects" :key="project._id" class="project-card">
+      <article v-for="(project, i) in filteredProjects" :key="project._id" class="project-card"
+        @click="navigateToProject(project._id)">
         <div class="project-card__thumb" :style="{ background: cardAccent(i) }">
           <v-icon size="28" class="project-card__thumb-icon">mdi-lightbulb-outline</v-icon>
         </div>
@@ -71,6 +72,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useProjectList } from '@/composables/projects/useProjectList'
 import CreateProjectModal from '@/components/modals/CreateProjectModal.vue'
 
@@ -82,7 +84,7 @@ definePage({
 
 const route = useRoute()
 const { projects, loading, fetchProjects } = useProjectList()
-
+const router = useRouter()
 const searchQuery = ref('')
 const filterMode = ref('recent')
 const viewMode = ref('grid')
@@ -147,6 +149,15 @@ watch(
 onMounted(() => {
   fetchProjects()
 })
+
+
+async function navigateToProject(projectId) {
+  try {
+    router.push(`/projects/${projectId}`)
+  } catch (err) {
+    console.error('Failed to navigate to project', err)
+  }
+}
 </script>
 
 <style scoped>
@@ -354,12 +365,19 @@ onMounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.25s ease-out,
+    border-color 0.25s ease-out,
+    box-shadow 0.25s ease-out;
 }
 
 .project-card:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  border-color: rgba(255, 196, 0, 0.35);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.18),
+    0 0 0 1px rgba(255, 196, 0, 0.08);
+  background: linear-gradient(180deg, rgba(237, 150, 62, 0.35) 0%, rgba(237, 150, 62, 0.15) 100%);
 }
 
 .project-card__thumb {
@@ -367,6 +385,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--radius-card);
+  margin: 0.5rem;
 }
 
 .project-card__thumb-icon {

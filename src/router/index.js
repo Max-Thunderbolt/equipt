@@ -3,9 +3,24 @@ import { setupLayouts } from 'virtual:generated-layouts'
 import { routes } from 'vue-router/auto-routes'
 import { useUserStore } from '@/stores'
 
+const projectRoutes = [
+  {
+    path: '/projects',
+    name: 'projects',
+    component: () => import('@/pages/projects/index.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/projects/:id',
+    name: 'project-details',
+    component: () => import('@/pages/projects/[id].vue'),
+    meta: { requiresAuth: true },
+  },
+]
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: setupLayouts(routes),
+  routes: setupLayouts([...routes, ...projectRoutes]),
 })
 
 // Auth guard: wait for auth to be ready, then enforce meta

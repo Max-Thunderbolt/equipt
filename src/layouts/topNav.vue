@@ -9,16 +9,21 @@
       <div class="nav-links">
         <template v-if="userStore.isLoggedIn">
           <div class="nav-link-item">
-            <button class="nav-link-button-projects" @click="toggleProjects">
+            <button
+              type="button"
+              class="nav-link-button-projects"
+              :class="{ 'nav-link-button--active': isProjectsActive }"
+              @click="toggleProjects"
+            >
               Projects
               <v-icon size="16">mdi-chevron-down</v-icon>
             </button>
             <ProjectsModal v-if="isProjectsOpen" :open="isProjectsOpen" @close="closeProjects" />
           </div>
           <div class="nav-link-item">
-            <button class="nav-link-button-todos" @click="goToExplore">
+            <router-link to="/explore" class="nav-link-button-todos" @click="closeProjects">
               Explore
-            </button>
+            </router-link>
           </div>
         </template>
       </div>
@@ -42,7 +47,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores'
 import ProjectsModal from '@/components/modals/projectsModal.vue'
 import ProfileDropdown from '@/components/dropdowns/ProfileDropdown.vue'
@@ -50,8 +56,12 @@ import logoImg from '@/assets/equiptBanner.png'
 import defaultAvatar from '@/assets/user.png'
 
 const userStore = useUserStore()
+const route = useRoute()
+const router = useRouter()
 const isProjectsOpen = ref(false)
 const isProfileOpen = ref(false)
+
+const isProjectsActive = computed(() => route.path === '/projects' || route.path.startsWith('/projects/'))
 
 function onAvatarError(e) {
   e.target.src = defaultAvatar
@@ -146,6 +156,31 @@ const closeProfile = () => {
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   padding: 0.5rem 1rem;
+  color: #fff;
+}
+
+.nav-link-button-projects,
+.nav-link-button-todos {
+  font-family: var(--font-figtree);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nav-link-button-projects.nav-link-button--active,
+.nav-link-button-todos.router-link-active {
+  background: linear-gradient(180deg,
+      rgba(121, 121, 183, 0.25) 0%,
+      rgba(242, 104, 55, 0.25) 100%);
   color: #fff;
 }
 
