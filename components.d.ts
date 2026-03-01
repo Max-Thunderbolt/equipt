@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AuthCard: typeof import('./src/components/auth/AuthCard.vue')['default']
     Breadcrumbs: typeof import('./src/components/Breadcrumbs.vue')['default']
+    CollapsibleTable: typeof import('./src/components/tables/CollapsibleTable.vue')['default']
     CreateButton: typeof import('./src/components/buttons/CreateButton.vue')['default']
     CreateProjectModal: typeof import('./src/components/modals/CreateProjectModal.vue')['default']
     CreateTaskModal: typeof import('./src/components/modals/CreateTaskModal.vue')['default']

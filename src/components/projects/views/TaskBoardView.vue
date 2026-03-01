@@ -14,8 +14,8 @@
           <h4 class="card-title">{{ task.title }}</h4>
           <p class="card-desc">{{ task.description }}</p>
           <div class="card-footer">
-             <span class="status-dot" :class="status.id"></span>
-             {{ status.label }}
+            <span class="status-dot" :class="status.id"></span>
+            {{ status.label }}
           </div>
         </div>
       </div>
@@ -57,17 +57,32 @@ const getTasksByStatus = (statusId) => {
   flex: 0 0 300px;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 32px;
   max-height: 100%;
   border-top-width: 4px;
 }
 
-.board-column.todo { border-top-color: #ccc; background: linear-gradient(180deg, rgba(204, 204, 204, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%); }
-.board-column.in_progress { border-top-color: #60a5fa; background: linear-gradient(180deg, rgba(96, 165, 250, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%); }
-.board-column.review { border-top-color: #fbbf24; background: linear-gradient(180deg, rgba(251, 191, 36, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%); }
-.board-column.done { border-top-color: #34d399; background: linear-gradient(180deg, rgba(52, 211, 153, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%); }
+.board-column.todo {
+  border-top-color: #ccc;
+  background: linear-gradient(180deg, rgba(204, 204, 204, 0.5) 0%, rgba(204, 204, 204, 0.2) 100%);
+}
+
+.board-column.in_progress {
+  border-top-color: #60a5fa;
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.5) 0%, rgba(96, 165, 250, 0.2) 100%);
+}
+
+.board-column.review {
+  border-top-color: #fbbf24;
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.5) 0%, rgba(251, 191, 36, 0.2) 100%);
+}
+
+.board-column.done {
+  border-top-color: #34d399;
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.5) 0%, rgba(52, 211, 153, 0.2) 100%);
+}
 
 .column-header {
   padding: 1rem;
@@ -84,10 +99,21 @@ const getTasksByStatus = (statusId) => {
   font-size: 0.9375rem;
 }
 
-.column-title.todo { color: #ccc; }
-.column-title.in_progress { color: #60a5fa; }
-.column-title.review { color: #fbbf24; }
-.column-title.done { color: #34d399; }
+.column-title.todo {
+  color: #ccc;
+}
+
+.column-title.in_progress {
+  color: #60a5fa;
+}
+
+.column-title.review {
+  color: #fbbf24;
+}
+
+.column-title.done {
+  color: #34d399;
+}
 
 .column-count {
   background: rgba(255, 255, 255, 0.1);
@@ -108,8 +134,8 @@ const getTasksByStatus = (statusId) => {
 
 .board-card {
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 32px;
   padding: 1rem;
   cursor: pointer;
   transition: transform 0.2s, background 0.2s;
@@ -179,8 +205,19 @@ const getTasksByStatus = (statusId) => {
   border-radius: 50%;
 }
 
-.status-dot.todo { background: #ccc; }
-.status-dot.in_progress { background: #60a5fa; }
-.status-dot.review { background: #fbbf24; }
-.status-dot.done { background: #34d399; }
+.status-dot.todo {
+  background: #ccc;
+}
+
+.status-dot.in_progress {
+  background: #60a5fa;
+}
+
+.status-dot.review {
+  background: #fbbf24;
+}
+
+.status-dot.done {
+  background: #34d399;
+}
 </style>

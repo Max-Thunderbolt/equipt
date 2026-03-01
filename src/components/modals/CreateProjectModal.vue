@@ -11,84 +11,57 @@
         <form class="create-project-modal__form" @submit.prevent="onSubmit">
           <div class="create-project-modal__field">
             <label for="create-project-name" class="create-project-modal__label">Project name</label>
-            <input
-              id="create-project-name"
-              v-model="form.name"
-              type="text"
-              class="create-project-modal__input"
-              placeholder="Enter project name"
-              required
-            >
+            <input id="create-project-name" v-model="form.name" type="text" class="create-project-modal__input"
+              placeholder="Enter project name" required>
           </div>
           <div class="create-project-modal__field">
             <label for="create-project-desc" class="create-project-modal__label">Description</label>
-            <textarea
-              id="create-project-desc"
-              v-model="form.description"
-              class="create-project-modal__textarea"
-              placeholder="Optional description"
-              rows="3"
-            />
+            <textarea id="create-project-desc" v-model="form.description" class="create-project-modal__textarea"
+              placeholder="Optional description" rows="3" />
           </div>
           <div class="create-project-modal__field">
             <label class="create-project-modal__label">Collaborators</label>
             <div class="create-project-modal__search-wrap">
-              <input
-                v-model="searchQuery"
-                type="text"
-                class="create-project-modal__input"
-                placeholder="Search users to invite"
-                autocomplete="off"
-                @focus="showSearchResults = true"
-              >
+              <input v-model="searchQuery" type="text" class="create-project-modal__input"
+                placeholder="Search users to invite" autocomplete="off" @focus="showSearchResults = true">
               <ul v-if="showSearchResults && searchResults.length > 0" class="create-project-modal__results">
-                <li
-                  v-for="u in searchResults"
-                  :key="u._id"
-                  class="create-project-modal__result-item"
-                  @click="addCollaborator(u)"
-                >
-                  <img
-                    v-if="u.photoURL"
-                    :src="u.photoURL"
-                    alt=""
-                    class="create-project-modal__result-avatar"
-                  >
-                  <span v-else class="create-project-modal__result-avatar create-project-modal__result-avatar--fallback">{{ (u.displayName || u.email || '?')[0] }}</span>
+                <li v-for="u in searchResults" :key="u._id" class="create-project-modal__result-item"
+                  @click="addCollaborator(u)">
+                  <img v-if="u.photoURL" :src="u.photoURL" alt="" class="create-project-modal__result-avatar">
+                  <span v-else
+                    class="create-project-modal__result-avatar create-project-modal__result-avatar--fallback">{{
+                      (u.displayName || u.email || '?')[0] }}</span>
                   <span>{{ u.displayName || u.email || u._id }}</span>
                 </li>
               </ul>
             </div>
             <div v-if="selectedCollaborators.length > 0" class="create-project-modal__chips">
-              <span
-                v-for="u in selectedCollaborators"
-                :key="u._id"
-                class="create-project-modal__chip"
-              >
+              <span v-for="u in selectedCollaborators" :key="u._id" class="create-project-modal__chip">
                 {{ u.displayName || u.email || u._id }}
-                <button type="button" class="create-project-modal__chip-remove" @click="removeCollaborator(u)">×</button>
+                <button type="button" class="create-project-modal__chip-remove"
+                  @click="removeCollaborator(u)">×</button>
               </span>
             </div>
           </div>
           <div class="create-project-modal__field create-project-modal__field--row">
-            <input
-              id="create-project-public"
-              v-model="form.isPublic"
-              type="checkbox"
-              class="create-project-modal__checkbox"
-            >
-            <label for="create-project-public" class="create-project-modal__label create-project-modal__label--inline">Public project</label>
+            <input id="create-project-public" v-model="form.isPublic" type="checkbox"
+              class="create-project-modal__checkbox">
+            <label for="create-project-public"
+              class="create-project-modal__label create-project-modal__label--inline">Public project</label>
           </div>
           <div v-if="error" class="create-project-modal__error">
             {{ error }}
           </div>
           <div class="create-project-modal__actions">
-            <button type="button" class="create-project-modal__btn create-project-modal__btn--secondary" @click="handleClose">
+            <button type="button" class="create-project-modal__btn create-project-modal__btn--secondary"
+              @click="handleClose">
               Cancel
             </button>
-            <button type="submit" class="create-project-modal__btn create-project-modal__btn--primary" :disabled="saving">
+            <!-- <button type="submit" class="create-project-modal__btn create-project-modal__btn--primary"
+              :disabled="saving">
               {{ saving ? 'Creating…' : 'Create Project' }}
-            </button>
+            </button> -->
+            <CreateButton name="Create Project" :disabled="saving" @click="onSubmit" />
           </div>
         </form>
       </div>
@@ -99,6 +72,7 @@
 <script setup>
 import { watch } from 'vue'
 import { useCreateProjectModal } from '@/composables/projects/useCreateProjectModal'
+import CreateButton from '@/components/buttons/CreateButton.vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -366,7 +340,7 @@ watch(
 
 .create-project-modal__btn--primary {
   background: var(--equipt-orange);
-  color: #000;
+  color: #FFFF;
 }
 
 .create-project-modal__btn--primary:hover:not(:disabled) {
